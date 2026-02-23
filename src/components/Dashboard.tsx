@@ -9,6 +9,7 @@ import LabelModal from './LabelModal';
 import SchedulesPage from './SchedulesPage';
 import SettingsPage from './SettingsPage';
 import AuthButtons from './AuthButtons';
+import AIAssistant from './AIAssistant';
 import Footer from './Footer';
 import type { NavRoute, TimeBlock } from '../types/schedule';
 import {
@@ -415,6 +416,7 @@ export default function Dashboard() {
                   {currentRoute === 'dashboard' && 'Schedule Editor'}
                   {currentRoute === 'schedules' && 'My Schedules'}
                   {currentRoute === 'settings' && 'Settings'}
+                  {currentRoute === 'ai-assistant' && 'AI Assistant'}
                 </h2>
 
                 {/* Schedule Dropdown - only on Schedule Editor page */}
@@ -624,6 +626,16 @@ export default function Dashboard() {
               </div>
             )}
           </>
+        )}
+
+        {currentRoute === 'ai-assistant' && (
+          <AIAssistant
+            timeBlocks={timeBlocks}
+            scheduleName={currentScheduleName}
+            onApplySchedule={(newBlocks) => {
+              setTimeBlocks(newBlocks);
+            }}
+          />
         )}
 
         {currentRoute === 'settings' && (
