@@ -222,29 +222,66 @@ export default function Timeline({
         const top = (segment.start / totalDayMinutes) * 100;
         const height = (segment.duration / totalDayMinutes) * 100;
 
+        // Calculate pixel height for smart text fitting
+        const pixelHeight = (segment.duration / totalDayMinutes) * timelineHeight;
+        const isVeryShort = pixelHeight < 28;
+        const isShort = pixelHeight < 44;
+        const isMedium = pixelHeight < 60;
+
         return (
           <div
             key={`${block.id}-${index}`}
-            className="absolute left-12 sm:left-14 right-2 sm:right-4 rounded-lg cursor-pointer transition-all hover:shadow-lg active:scale-95 sm:hover:scale-[1.02] group touch-manipulation"
+            className="absolute left-12 sm:left-14 right-2 sm:right-4 rounded-lg cursor-pointer transition-all hover:shadow-lg active:scale-95 sm:hover:scale-[1.02] group touch-manipulation overflow-hidden"
             style={{
               top: `${top}%`,
               height: `${height}%`,
               backgroundColor: block.color,
-              minHeight: '30px',
+              minHeight: '20px',
             }}
             onClick={() => onBlockClick(block)}
             title={`${block.label} (${formatTo12Hour(block.startTime)} - ${formatTo12Hour(block.endTime)})`}
           >
-            {duration >= 15 && (
-              <div className="px-2 sm:px-3 py-1.5 sm:py-2 text-white font-medium text-xs sm:text-sm">
-                <div className="flex items-center justify-between gap-2">
+            {isVeryShort ? (
+              <div className="px-2 py-0.5 text-white font-medium flex items-center h-full" style={{ fontSize: '10px' }}>
+                <span className="truncate">{block.label}</span>
+              </div>
+            ) : isShort ? (
+              <div className="px-2 sm:px-3 py-1 text-white font-medium text-xs">
+                <div className="flex items-center justify-between gap-1">
                   <span className="truncate">{block.label}</span>
-                  {index === 0 && duration >= 30 && (
-                    <span className="text-xs opacity-75 whitespace-nowrap">
+                  {index === 0 && (
+                    <span className="opacity-75 whitespace-nowrap flex-shrink-0" style={{ fontSize: '10px' }}>
                       {formatDuration(duration)}
                     </span>
                   )}
                 </div>
+              </div>
+            ) : isMedium ? (
+              <div className="px-2 sm:px-3 py-1.5 text-white font-medium text-xs sm:text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{block.label}</span>
+                  {index === 0 && (
+                    <span className="text-xs opacity-75 whitespace-nowrap flex-shrink-0">
+                      {formatDuration(duration)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="px-2 sm:px-3 py-1.5 sm:py-2 text-white font-medium text-xs sm:text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{block.label}</span>
+                  {index === 0 && (
+                    <span className="text-xs opacity-75 whitespace-nowrap flex-shrink-0">
+                      {formatDuration(duration)}
+                    </span>
+                  )}
+                </div>
+                {index === 0 && pixelHeight > 80 && (
+                  <div className="text-xs opacity-60 mt-0.5">
+                    {formatTo12Hour(block.startTime)} - {formatTo12Hour(block.endTime)}
+                  </div>
+                )}
               </div>
             )}
           </div>
