@@ -10,6 +10,7 @@ import SchedulesPage from './SchedulesPage';
 import SettingsPage from './SettingsPage';
 import AuthButtons from './AuthButtons';
 import AIAssistant from './AIAssistant';
+import type { DisplayMessage } from './AIAssistant';
 import Footer from './Footer';
 import type { NavRoute, TimeBlock } from '../types/schedule';
 import {
@@ -48,6 +49,15 @@ export default function Dashboard() {
   const [showScheduleDropdown, setShowScheduleDropdown] = useState(false);
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
   const authButtonRef = useRef<HTMLDivElement>(null);
+
+  // AI Assistant chat state (lifted up to persist across navigation)
+  const [aiMessages, setAiMessages] = useState<DisplayMessage[]>([
+    {
+      role: 'assistant',
+      content: 'Hi! I\'m your AI scheduling assistant. I can help you plan your day, suggest schedule improvements, or create a new schedule from scratch.\n\nHow can I help?',
+      timestamp: new Date(),
+    },
+  ]);
 
   // Ref to track if we're currently saving
   const savingRef = useRef(false);
@@ -407,8 +417,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Header - Hidden on mobile */}
-        <header className="hidden lg:block bg-white border-b border-gray-200 px-4 sm:px-8 py-2 sm:py-3 lg:py-4">
+        {/* Header - Hidden on mobile and on AI Assistant (which has its own header) */}
+        <header className={`bg-white border-b border-gray-200 px-4 sm:px-8 py-2 sm:py-3 lg:py-4 ${currentRoute === 'ai-assistant' ? 'hidden' : 'hidden lg:block'}`}>
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 sm:gap-3">
@@ -631,7 +641,8 @@ export default function Dashboard() {
         {currentRoute === 'ai-assistant' && (
           <AIAssistant
             timeBlocks={timeBlocks}
-            scheduleName={currentScheduleName}
+            messages={aiMessages}
+            setMessages={setAiMessages}
             onApplySchedule={(newBlocks) => {
               setTimeBlocks(newBlocks);
             }}

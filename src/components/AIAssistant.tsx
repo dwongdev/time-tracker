@@ -4,27 +4,118 @@ import { sendMessage } from '../services/aiService';
 import type { ChatMessage } from '../services/aiService';
 import { formatTo12Hour } from '../utils/timeUtils';
 
-interface AIAssistantProps {
-  timeBlocks: TimeBlock[];
-  onApplySchedule: (timeBlocks: TimeBlock[]) => void;
-  scheduleName: string;
+/** Simple markdown-to-JSX renderer for AI responses */
+function renderMarkdown(text: string): React.ReactNode[] {
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+  let listKey = 0;
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`list-${listKey++}`} className="list-disc list-inside space-y-1 my-1">
+          {listItems}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  const formatInline = (str: string): React.ReactNode[] => {
+    const parts: React.ReactNode[] = [];
+    // Match **bold**, `code`, and plain text
+    const regex = /(\*\*(.+?)\*\*|`(.+?)`)/g;
+    let lastIndex = 0;
+    let match;
+    let key = 0;
+
+    while ((match = regex.exec(str)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(str.slice(lastIndex, match.index));
+      }
+      if (match[2]) {
+        parts.push(<strong key={key++} className="font-semibold">{match[2]}</strong>);
+      } else if (match[3]) {
+        parts.push(
+          <code key={key++} className="bg-gray-100 text-gray-800 px-1 py-0.5 rounded text-xs">
+            {match[3]}
+          </code>
+        );
+      }
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < str.length) {
+      parts.push(str.slice(lastIndex));
+    }
+    return parts;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Headers
+    const headerMatch = line.match(/^(#{1,3})\s+(.+)$/);
+    if (headerMatch) {
+      flushList();
+      const level = headerMatch[1].length;
+      const cls = level === 1
+        ? 'text-base font-bold mt-3 mb-1'
+        : level === 2
+        ? 'text-sm font-bold mt-2 mb-1'
+        : 'text-sm font-semibold mt-2 mb-0.5';
+      elements.push(<div key={`h-${i}`} className={cls}>{formatInline(headerMatch[2])}</div>);
+      continue;
+    }
+
+    // List items (- or *)
+    const listMatch = line.match(/^[\-\*]\s+(.+)$/);
+    if (listMatch) {
+      listItems.push(<li key={`li-${i}`}>{formatInline(listMatch[1])}</li>);
+      continue;
+    }
+
+    // Numbered list items
+    const numListMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (numListMatch) {
+      flushList();
+      elements.push(
+        <div key={`nl-${i}`} className="ml-2 my-0.5">{formatInline(line)}</div>
+      );
+      continue;
+    }
+
+    // Empty line
+    if (line.trim() === '') {
+      flushList();
+      elements.push(<div key={`br-${i}`} className="h-2" />);
+      continue;
+    }
+
+    // Plain paragraph
+    flushList();
+    elements.push(<div key={`p-${i}`} className="my-0.5">{formatInline(line)}</div>);
+  }
+
+  flushList();
+  return elements;
 }
 
-interface DisplayMessage {
+export interface DisplayMessage {
   role: 'user' | 'assistant';
   content: string;
   timeBlocks?: TimeBlock[];
   timestamp: Date;
 }
 
-export default function AIAssistant({ timeBlocks, onApplySchedule, scheduleName }: AIAssistantProps) {
-  const [messages, setMessages] = useState<DisplayMessage[]>([
-    {
-      role: 'assistant',
-      content: `Hi! I'm your AI scheduling assistant. I can help you plan your day, suggest schedule improvements, or create a new schedule from scratch.\n\nYou currently have ${timeBlocks.length} time block${timeBlocks.length !== 1 ? 's' : ''} in "${scheduleName}". How can I help?`,
-      timestamp: new Date(),
-    },
-  ]);
+interface AIAssistantProps {
+  timeBlocks: TimeBlock[];
+  onApplySchedule: (timeBlocks: TimeBlock[]) => void;
+  messages: DisplayMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<DisplayMessage[]>>;
+}
+
+export default function AIAssistant({ timeBlocks, onApplySchedule, messages, setMessages }: AIAssistantProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +226,9 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, scheduleName 
                   : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
               }`}
             >
-              <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+              <div className="text-sm leading-relaxed">
+                {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+              </div>
 
               {/* Schedule Preview */}
               {msg.timeBlocks && msg.timeBlocks.length > 0 && (
