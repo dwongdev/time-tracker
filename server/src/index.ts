@@ -229,7 +229,7 @@ function stripScheduleBlock(text: string): string {
 }
 
 // Verify Firebase auth token from Authorization header
-async function verifyAuth(req: express.Request): Promise<string> {
+async function verifyAuth(req: express.Request): Promise<{ uid: string; emailVerified: boolean }> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     throw new Error('Missing or invalid authorization header');
@@ -237,13 +237,17 @@ async function verifyAuth(req: express.Request): Promise<string> {
 
   const token = authHeader.split('Bearer ')[1];
   const decoded = await admin.auth().verifyIdToken(token);
-  return decoded.uid;
+
+  // Google sign-in users are always verified; check email_verified for email/password users
+  const emailVerified = decoded.email_verified ?? false;
+
+  return { uid: decoded.uid, emailVerified };
 }
 
 // Get user's AI usage info
 app.get('/api/ai/usage', async (req, res) => {
   try {
-    const uid = await verifyAuth(req);
+    const { uid } = await verifyAuth(req);
     const usage = await getUserUsage(uid);
     const limit = USAGE_LIMITS[usage.tier];
 
@@ -265,8 +269,16 @@ app.get('/api/ai/usage', async (req, res) => {
 // AI message endpoint
 app.post('/api/ai/message', async (req, res) => {
   try {
-    // Verify user is authenticated
-    const uid = await verifyAuth(req);
+    // Verify user is authenticated and email is verified
+    const { uid, emailVerified } = await verifyAuth(req);
+
+    if (!emailVerified) {
+      res.status(403).json({
+        error: 'Please verify your email before using the AI assistant.',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
+      return;
+    }
 
     // Check rate limit and increment usage
     let usageInfo: { remaining: number; limit: number; tier: UserTier };

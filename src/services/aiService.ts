@@ -87,6 +87,10 @@ export const sendMessage = async (
         throw new Error('Please sign in to use the AI assistant.');
       }
 
+      if (response.status === 403) {
+        throw new Error(errorData?.error || 'Please verify your email before using the AI assistant.');
+      }
+
       if (response.status === 429) {
         throw new RateLimitError(
           errorData?.error || 'Rate limit reached.',
