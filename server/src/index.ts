@@ -6,9 +6,14 @@ import * as admin from 'firebase-admin';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Firebase Admin for auth token verification + Firestore
+// Initialize Firebase Admin with service account for Firestore access
+const serviceAccount = process.env.GOOGLE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT)
+  : undefined;
+
 admin.initializeApp({
   projectId: process.env.FIREBASE_PROJECT_ID,
+  ...(serviceAccount && { credential: admin.credential.cert(serviceAccount) }),
 });
 
 const db = admin.firestore();
