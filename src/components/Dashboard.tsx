@@ -415,7 +415,7 @@ export default function Dashboard() {
                 Resend Email
               </button>
               <button
-                onClick={() => user.reload().then(() => window.location.reload())}
+                onClick={() => user.reload().then(() => user.getIdToken(true)).then(() => window.location.reload())}
                 className="bg-white text-amber-600 px-3 py-1 rounded-md text-xs font-semibold hover:bg-amber-50 transition-colors"
               >
                 I've Verified
