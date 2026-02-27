@@ -18,7 +18,8 @@ app.use(cors({
     'http://localhost:5174',
     process.env.FRONTEND_URL || '',
   ].filter(Boolean),
-  methods: ['POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json());
