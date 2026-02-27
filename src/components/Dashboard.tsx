@@ -10,6 +10,7 @@ import SchedulesPage from './SchedulesPage';
 import SettingsPage from './SettingsPage';
 import AuthButtons from './AuthButtons';
 import AIAssistant from './AIAssistant';
+import ScheduleListPanel from './ScheduleListPanel';
 import type { DisplayMessage } from './AIAssistant';
 import Footer from './Footer';
 import type { NavRoute, TimeBlock } from '../types/schedule';
@@ -36,6 +37,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
   const [viewMode, setViewMode] = useState<'linear' | 'circular'>('circular');
+  const [showScheduleList, setShowScheduleList] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
 
   // Modal state
@@ -531,6 +533,18 @@ export default function Dashboard() {
             {/* Controls */}
             {currentRoute === 'dashboard' && (
               <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                {/* Schedule List Toggle */}
+                <button
+                  onClick={() => setShowScheduleList(true)}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 text-xs sm:text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 touch-manipulation flex items-center gap-1.5"
+                  title="View schedule as list"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  <span className="hidden sm:inline">List</span>
+                </button>
+
                 {/* Save Button */}
                 <button
                   onClick={handleSaveSchedule}
@@ -718,13 +732,20 @@ export default function Dashboard() {
               </button>
             )}
             <button
+              onClick={() => setShowScheduleList(true)}
+              className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 border border-gray-200"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </button>
+            <button
               onClick={handleClearAllBlocks}
-              className="flex-1 bg-red-50 text-red-600 px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+              className="bg-red-50 text-red-600 px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              Delete All
             </button>
           </div>
           <p className="text-xs text-center text-gray-500">
@@ -768,6 +789,18 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Schedule List Panel */}
+      {showScheduleList && (
+        <ScheduleListPanel
+          timeBlocks={timeBlocks}
+          onBlockClick={(block) => {
+            setShowScheduleList(false);
+            handleBlockClick(block);
+          }}
+          onClose={() => setShowScheduleList(false)}
+        />
       )}
 
       {/* Label Modal */}
