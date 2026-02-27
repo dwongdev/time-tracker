@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { TimeBlock } from '../types/schedule';
-import { sendMessage } from '../services/aiService';
-import type { ChatMessage } from '../services/aiService';
+import { sendMessage, getUsage, RateLimitError } from '../services/aiService';
+import type { ChatMessage, UsageInfo } from '../services/aiService';
 import { formatTo12Hour } from '../utils/timeUtils';
 
 /** Simple markdown-to-JSX renderer for AI responses */
@@ -119,6 +119,8 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [rateLimited, setRateLimited] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -129,6 +131,16 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Fetch usage on mount
+  useEffect(() => {
+    getUsage()
+      .then((data) => {
+        setUsage(data);
+        if (data.remaining <= 0) setRateLimited(true);
+      })
+      .catch(() => { /* user may not be signed in yet */ });
+  }, []);
 
   const handleSend = async () => {
     const trimmed = input.trim();
@@ -160,15 +172,28 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Update usage from response
+      if (response.usage) {
+        setUsage(response.usage);
+        if (response.usage.remaining <= 0) setRateLimited(true);
+      }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Something went wrong';
-      setError(errorMsg);
-      const errorMessage: DisplayMessage = {
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${errorMsg}`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      if (err instanceof RateLimitError) {
+        setRateLimited(true);
+        setError(err.message);
+        // Refresh usage
+        getUsage().then(setUsage).catch(() => {});
+      } else {
+        const errorMsg = err instanceof Error ? err.message : 'Something went wrong';
+        setError(errorMsg);
+        const errorMessage: DisplayMessage = {
+          role: 'assistant',
+          content: `Sorry, I encountered an error: ${errorMsg}`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -199,16 +224,34 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-sm">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-sm">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
+              <p className="text-xs text-gray-500">Powered by Claude</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
-            <p className="text-xs text-gray-500">Powered by Claude</p>
-          </div>
+          {usage && (
+            <div className="flex items-center gap-2">
+              <div className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                usage.tier === 'premium'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {usage.tier === 'premium' ? 'Premium' : 'Free'}
+              </div>
+              <div className={`text-xs font-medium ${
+                usage.remaining <= 1 ? 'text-red-500' : 'text-gray-500'
+              }`}>
+                {usage.remaining}/{usage.limit} left
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -342,33 +385,73 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
         </div>
       )}
 
+      {/* Upgrade Prompt (when rate limited) */}
+      {rateLimited && (
+        <div className="mx-4 sm:mx-6 mb-2 px-4 py-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl flex-shrink-0">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-purple-900">
+                {usage?.tier === 'free' ? "You've used all 5 free messages" : 'Monthly limit reached'}
+              </p>
+              <p className="text-xs text-purple-700 mt-0.5">
+                {usage?.tier === 'free'
+                  ? 'Upgrade to Premium for 500 messages per month.'
+                  : 'Your message limit will reset on the 1st of next month.'}
+              </p>
+              {usage?.tier === 'free' && (
+                <button className="mt-2 px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-sm">
+                  Upgrade to Premium
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
       <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex-shrink-0">
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about your schedule or request a new one..."
-            rows={1}
-            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 max-h-32"
-            style={{ minHeight: '42px' }}
-            disabled={isLoading}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="p-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex-shrink-0"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </div>
-        <p className="text-[10px] text-gray-400 mt-1.5 text-center">
-          Press Enter to send, Shift+Enter for new line
-        </p>
+        {rateLimited ? (
+          <div className="text-center py-2">
+            <p className="text-sm text-gray-500">
+              {usage?.tier === 'free'
+                ? 'Upgrade to Premium to continue chatting'
+                : 'Message limit reached. Resets on the 1st.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about your schedule or request a new one..."
+                rows={1}
+                className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 max-h-32"
+                style={{ minHeight: '42px' }}
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                className="p-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md flex-shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+              Press Enter to send, Shift+Enter for new line
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

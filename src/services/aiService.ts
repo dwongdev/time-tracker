@@ -9,14 +9,25 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface AIScheduleResponse {
+export interface UsageInfo {
+  tier: 'free' | 'premium';
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
+export interface AIMessageResponse {
   message: string;
-  timeBlocks?: Array<{
-    startTime: string;
-    endTime: string;
-    label: string;
-    color: string;
-  }>;
+  timeBlocks?: TimeBlock[];
+  usage?: UsageInfo;
+}
+
+export class RateLimitError extends Error {
+  code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.code = code;
+  }
 }
 
 /**
@@ -31,12 +42,29 @@ async function getAuthToken(): Promise<string> {
 }
 
 /**
+ * Fetch the user's current AI usage info
+ */
+export const getUsage = async (): Promise<UsageInfo> => {
+  const token = await getAuthToken();
+
+  const response = await fetch(`${API_BASE_URL}/api/ai/usage`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch usage info');
+  }
+
+  return response.json();
+};
+
+/**
  * Send a message to the AI assistant via backend proxy
  */
 export const sendMessage = async (
   messages: ChatMessage[],
   currentTimeBlocks: TimeBlock[]
-): Promise<{ message: string; timeBlocks?: TimeBlock[] }> => {
+): Promise<AIMessageResponse> => {
   const token = await getAuthToken();
 
   try {
@@ -54,9 +82,18 @@ export const sendMessage = async (
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
+
       if (response.status === 401) {
         throw new Error('Please sign in to use the AI assistant.');
       }
+
+      if (response.status === 429) {
+        throw new RateLimitError(
+          errorData?.error || 'Rate limit reached.',
+          errorData?.code || 'LIMIT_REACHED',
+        );
+      }
+
       throw new Error(
         errorData?.error || `API request failed with status ${response.status}`
       );
@@ -79,6 +116,7 @@ export const sendMessage = async (
     return {
       message: data.message,
       timeBlocks: enrichedBlocks,
+      usage: data.usage,
     };
   } catch (error) {
     if (error instanceof Error) {

@@ -6,10 +6,109 @@ import * as admin from 'firebase-admin';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Firebase Admin for auth token verification
+// Initialize Firebase Admin for auth token verification + Firestore
 admin.initializeApp({
   projectId: process.env.FIREBASE_PROJECT_ID,
 });
+
+const db = admin.firestore();
+
+// Usage limits by tier
+const USAGE_LIMITS = {
+  free: 5,       // 5 total messages, no reset
+  premium: 500,  // 500 messages per month
+} as const;
+
+type UserTier = keyof typeof USAGE_LIMITS;
+
+interface UserUsage {
+  tier: UserTier;
+  aiMessageCount: number;
+  aiMessageResetDate?: admin.firestore.Timestamp;
+  stripeCustomerId?: string;
+  subscriptionId?: string;
+}
+
+/**
+ * Get or create usage document for a user
+ */
+async function getUserUsage(uid: string): Promise<UserUsage> {
+  const ref = db.collection('userUsage').doc(uid);
+  const doc = await ref.get();
+
+  if (!doc.exists) {
+    const defaults: UserUsage = {
+      tier: 'free',
+      aiMessageCount: 0,
+    };
+    await ref.set(defaults);
+    return defaults;
+  }
+
+  return doc.data() as UserUsage;
+}
+
+/**
+ * Check if a premium user's monthly count should be reset
+ */
+function shouldResetMonthlyCount(usage: UserUsage): boolean {
+  if (usage.tier !== 'premium' || !usage.aiMessageResetDate) return false;
+  return usage.aiMessageResetDate.toDate() < new Date();
+}
+
+/**
+ * Get next month's reset date (1st of next month)
+ */
+function getNextResetDate(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+}
+
+/**
+ * Check rate limit and increment usage. Returns remaining count or throws.
+ */
+async function checkAndIncrementUsage(uid: string): Promise<{ remaining: number; limit: number; tier: UserTier }> {
+  const ref = db.collection('userUsage').doc(uid);
+
+  return db.runTransaction(async (transaction) => {
+    const doc = await transaction.get(ref);
+
+    let usage: UserUsage;
+    if (!doc.exists) {
+      usage = { tier: 'free', aiMessageCount: 0 };
+    } else {
+      usage = doc.data() as UserUsage;
+    }
+
+    const limit = USAGE_LIMITS[usage.tier];
+
+    // Reset monthly count for premium users if needed
+    if (usage.tier === 'premium' && shouldResetMonthlyCount(usage)) {
+      usage.aiMessageCount = 0;
+      usage.aiMessageResetDate = admin.firestore.Timestamp.fromDate(getNextResetDate());
+    }
+
+    if (usage.aiMessageCount >= limit) {
+      throw new Error(
+        usage.tier === 'free'
+          ? 'FREE_LIMIT_REACHED'
+          : 'PREMIUM_LIMIT_REACHED'
+      );
+    }
+
+    const newCount = usage.aiMessageCount + 1;
+    transaction.set(ref, {
+      ...usage,
+      aiMessageCount: newCount,
+    }, { merge: true });
+
+    return {
+      remaining: limit - newCount,
+      limit,
+      tier: usage.tier,
+    };
+  });
+}
 
 // CORS - allow your frontend origins
 app.use(cors({
@@ -136,11 +235,57 @@ async function verifyAuth(req: express.Request): Promise<string> {
   return decoded.uid;
 }
 
+// Get user's AI usage info
+app.get('/api/ai/usage', async (req, res) => {
+  try {
+    const uid = await verifyAuth(req);
+    const usage = await getUserUsage(uid);
+    const limit = USAGE_LIMITS[usage.tier];
+
+    res.json({
+      tier: usage.tier,
+      used: usage.aiMessageCount,
+      limit,
+      remaining: Math.max(0, limit - usage.aiMessageCount),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('authorization')) {
+      res.status(401).json({ error: 'Unauthorized. Please sign in.' });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to fetch usage info' });
+  }
+});
+
 // AI message endpoint
 app.post('/api/ai/message', async (req, res) => {
   try {
     // Verify user is authenticated
-    await verifyAuth(req);
+    const uid = await verifyAuth(req);
+
+    // Check rate limit and increment usage
+    let usageInfo: { remaining: number; limit: number; tier: UserTier };
+    try {
+      usageInfo = await checkAndIncrementUsage(uid);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'FREE_LIMIT_REACHED') {
+          res.status(429).json({
+            error: 'You\'ve used all 5 free AI messages. Upgrade to Premium for more.',
+            code: 'FREE_LIMIT_REACHED',
+          });
+          return;
+        }
+        if (error.message === 'PREMIUM_LIMIT_REACHED') {
+          res.status(429).json({
+            error: 'You\'ve reached your monthly message limit. It will reset on the 1st.',
+            code: 'PREMIUM_LIMIT_REACHED',
+          });
+          return;
+        }
+      }
+      throw error;
+    }
 
     const { messages, timeBlocks } = req.body as {
       messages: ChatMessage[];
@@ -185,6 +330,11 @@ app.post('/api/ai/message', async (req, res) => {
         displayMessage ||
         (parsedBlocks ? "Here's a schedule I created for you:" : assistantText),
       timeBlocks: parsedBlocks || undefined,
+      usage: {
+        remaining: usageInfo.remaining,
+        limit: usageInfo.limit,
+        tier: usageInfo.tier,
+      },
     });
   } catch (error) {
     console.error('AI endpoint error:', error);
