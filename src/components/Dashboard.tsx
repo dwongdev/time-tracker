@@ -395,6 +395,35 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
+        {/* Email Verification Banner for logged-in unverified users */}
+        {user && !user.emailVerified && (
+          <div className="bg-amber-500 text-white px-4 py-3 text-center text-sm font-medium">
+            <div className="max-w-4xl mx-auto flex items-center justify-center gap-4 flex-wrap">
+              <span>Please verify your email address to access all features.</span>
+              <button
+                onClick={async () => {
+                  try {
+                    const { resendVerificationEmail } = await import('../auth');
+                    await resendVerificationEmail();
+                    alert('Verification email sent! Check your inbox (and spam folder).');
+                  } catch {
+                    alert('Failed to send verification email. Please try again.');
+                  }
+                }}
+                className="bg-white text-amber-600 px-3 py-1 rounded-md text-xs font-semibold hover:bg-amber-50 transition-colors"
+              >
+                Resend Email
+              </button>
+              <button
+                onClick={() => user.reload().then(() => window.location.reload())}
+                className="bg-white text-amber-600 px-3 py-1 rounded-md text-xs font-semibold hover:bg-amber-50 transition-colors"
+              >
+                I've Verified
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Guest Mode Banner - Hidden on mobile */}
         {!user && isGuestMode && (
           <div className="hidden lg:flex bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 items-center justify-center">
