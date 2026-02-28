@@ -3,6 +3,8 @@ import type { TimeBlock } from '../types/schedule';
 import { sendMessage, getUsage, RateLimitError } from '../services/aiService';
 import type { ChatMessage, UsageInfo } from '../services/aiService';
 import { formatTo12Hour } from '../utils/timeUtils';
+import { auth } from '../firebase';
+import { resendVerificationEmail } from '../auth';
 
 /** Simple markdown-to-JSX renderer for AI responses */
 function renderMarkdown(text: string): React.ReactNode[] {
@@ -121,8 +123,18 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(true);
+  const [isResending, setIsResending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Check email verification status
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (user && !user.emailVerified) {
+      setEmailVerified(false);
+    }
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -385,6 +397,59 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
         </div>
       )}
 
+      {/* Email Verification Banner */}
+      {!emailVerified && (
+        <div className="mx-4 sm:mx-6 mb-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl flex-shrink-0">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">Verify your email to use AI Assistant</p>
+              <p className="text-xs text-amber-700 mt-0.5">Check your inbox (and spam folder) for a verification link.</p>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={async () => {
+                    setIsResending(true);
+                    try {
+                      await resendVerificationEmail();
+                      alert('Verification email sent! Check your inbox and spam folder.');
+                    } catch {
+                      alert('Failed to send verification email. Please try again.');
+                    } finally {
+                      setIsResending(false);
+                    }
+                  }}
+                  disabled={isResending}
+                  className="px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                >
+                  {isResending ? 'Sending...' : 'Resend Email'}
+                </button>
+                <button
+                  onClick={() => {
+                    const user = auth.currentUser;
+                    if (user) {
+                      user.reload().then(() => user.getIdToken(true)).then(() => {
+                        if (user.emailVerified) {
+                          setEmailVerified(true);
+                        } else {
+                          alert('Email not yet verified. Please check your inbox.');
+                        }
+                      });
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-white text-amber-700 text-xs font-medium rounded-lg border border-amber-300 hover:bg-amber-50 transition-colors"
+                >
+                  I've Verified
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upgrade Prompt (when rate limited) */}
       {rateLimited && (
         <div className="mx-4 sm:mx-6 mb-2 px-4 py-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl flex-shrink-0">
@@ -415,7 +480,11 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
 
       {/* Input Area */}
       <div className="bg-white border-t border-gray-200 px-4 sm:px-6 py-3 flex-shrink-0">
-        {rateLimited ? (
+        {!emailVerified ? (
+          <div className="text-center py-2">
+            <p className="text-sm text-gray-500">Verify your email to start chatting</p>
+          </div>
+        ) : rateLimited ? (
           <div className="text-center py-2">
             <p className="text-sm text-gray-500">
               {usage?.tier === 'free'
