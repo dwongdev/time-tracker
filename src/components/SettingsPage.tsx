@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import type { Schedule } from '../types/schedule';
 import { getUserSchedules } from '../services/scheduleService';
+import { getBillingStatus, createCheckoutSession, openCustomerPortal } from '../services/billingService';
+import type { BillingStatus } from '../services/billingService';
+import { getUsage } from '../services/aiService';
+import type { UsageInfo } from '../services/aiService';
 import Footer from './Footer';
 
 interface SettingsPageProps {
@@ -13,6 +17,10 @@ interface SettingsPageProps {
 export default function SettingsPage({ user }: SettingsPageProps) {
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   // Load all schedules
   useEffect(() => {
@@ -29,6 +37,25 @@ export default function SettingsPage({ user }: SettingsPageProps) {
     };
     loadSchedules();
   }, [user.uid]);
+
+  // Load billing status and usage
+  useEffect(() => {
+    const loadBilling = async () => {
+      try {
+        const [billingData, usageData] = await Promise.all([
+          getBillingStatus(),
+          getUsage(),
+        ]);
+        setBilling(billingData);
+        setUsage(usageData);
+      } catch {
+        // User may not have billing set up yet
+      } finally {
+        setBillingLoading(false);
+      }
+    };
+    loadBilling();
+  }, []);
 
   const selectedSchedule = allSchedules.find(s => s.id === selectedScheduleId);
 
@@ -150,6 +177,110 @@ export default function SettingsPage({ user }: SettingsPageProps) {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Subscription Section */}
+        <section className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Subscription
+          </h3>
+
+          {billingLoading ? (
+            <div className="animate-pulse space-y-3">
+              <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Current Plan */}
+              <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">
+                      {billing?.tier === 'premium' ? 'Premium Plan' : 'Free Plan'}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      billing?.tier === 'premium'
+                        ? 'bg-purple-100 text-purple-700'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {billing?.tier === 'premium' ? 'Active' : 'Current'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {billing?.tier === 'premium'
+                      ? '500 AI messages per month'
+                      : '5 AI messages total'}
+                  </p>
+                </div>
+                {usage && (
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-gray-900">{usage.remaining}</p>
+                    <p className="text-xs text-gray-500">of {usage.limit} remaining</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              {billing?.tier === 'premium' ? (
+                <div className="space-y-3">
+                  <button
+                    onClick={async () => {
+                      try { await openCustomerPortal(); }
+                      catch { alert('Failed to open billing portal.'); }
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg font-medium transition-colors flex items-center justify-between group border border-gray-200"
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Manage Subscription
+                    </span>
+                    <span className="text-xs text-gray-500 group-hover:text-gray-600">Update payment, cancel, invoices</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-purple-900">Upgrade to Premium</p>
+                      <p className="text-sm text-purple-700 mt-0.5">Get 500 AI messages per month, priority support, and more.</p>
+                      <div className="flex items-baseline gap-1 mt-2">
+                        <span className="text-2xl font-bold text-purple-900">$8</span>
+                        <span className="text-sm text-purple-600">/month</span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setIsCheckingOut(true);
+                          try {
+                            await createCheckoutSession();
+                          } catch (err) {
+                            alert(err instanceof Error ? err.message : 'Failed to start checkout');
+                          } finally {
+                            setIsCheckingOut(false);
+                          }
+                        }}
+                        disabled={isCheckingOut}
+                        className="mt-3 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                      >
+                        {isCheckingOut ? 'Redirecting to checkout...' : 'Upgrade Now'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Export Section */}

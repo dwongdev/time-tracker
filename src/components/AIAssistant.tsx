@@ -5,6 +5,7 @@ import type { ChatMessage, UsageInfo } from '../services/aiService';
 import { formatTo12Hour } from '../utils/timeUtils';
 import { auth } from '../firebase';
 import { resendVerificationEmail } from '../auth';
+import { createCheckoutSession, openCustomerPortal } from '../services/billingService';
 
 /** Simple markdown-to-JSX renderer for AI responses */
 function renderMarkdown(text: string): React.ReactNode[] {
@@ -125,6 +126,7 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
   const [rateLimited, setRateLimited] = useState(false);
   const [emailVerified, setEmailVerified] = useState(true);
   const [isResending, setIsResending] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -250,13 +252,22 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
           </div>
           {usage && (
             <div className="flex items-center gap-2">
-              <div className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                usage.tier === 'premium'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {usage.tier === 'premium' ? 'Premium' : 'Free'}
-              </div>
+              {usage.tier === 'premium' ? (
+                <button
+                  onClick={async () => {
+                    try { await openCustomerPortal(); }
+                    catch { alert('Failed to open billing portal.'); }
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors cursor-pointer"
+                  title="Manage subscription"
+                >
+                  Premium
+                </button>
+              ) : (
+                <div className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+                  Free
+                </div>
+              )}
               <div className={`text-xs font-medium ${
                 usage.remaining <= 1 ? 'text-red-500' : 'text-gray-500'
               }`}>
@@ -469,8 +480,21 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
                   : 'Your message limit will reset on the 1st of next month.'}
               </p>
               {usage?.tier === 'free' && (
-                <button className="mt-2 px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-sm">
-                  Upgrade to Premium
+                <button
+                  onClick={async () => {
+                    setIsCheckingOut(true);
+                    try {
+                      await createCheckoutSession();
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : 'Failed to start checkout');
+                    } finally {
+                      setIsCheckingOut(false);
+                    }
+                  }}
+                  disabled={isCheckingOut}
+                  className="mt-2 px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-sm disabled:opacity-50"
+                >
+                  {isCheckingOut ? 'Redirecting...' : 'Upgrade to Premium'}
                 </button>
               )}
             </div>

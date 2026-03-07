@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import * as admin from 'firebase-admin';
+import Stripe from 'stripe';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -138,6 +139,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Stripe webhook needs raw body — must be before express.json()
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json());
 
@@ -362,6 +366,225 @@ app.post('/api/ai/message', async (req, res) => {
     }
 
     res.status(500).json({ error: 'Failed to communicate with AI assistant' });
+  }
+});
+
+// ── Stripe Billing ──────────────────────────────────────────────────────────
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null;
+
+/**
+ * Create a Stripe Checkout session for upgrading to premium.
+ * Requires: STRIPE_SECRET_KEY, STRIPE_PRICE_ID env vars on Railway.
+ */
+app.post('/api/billing/checkout', async (req, res) => {
+  try {
+    if (!stripe) {
+      res.status(500).json({ error: 'Billing not configured' });
+      return;
+    }
+
+    const { uid, emailVerified } = await verifyAuth(req);
+    if (!emailVerified) {
+      res.status(403).json({ error: 'Please verify your email first.' });
+      return;
+    }
+
+    const priceId = process.env.STRIPE_PRICE_ID;
+    if (!priceId) {
+      res.status(500).json({ error: 'Billing not configured' });
+      return;
+    }
+
+    // Get or create Stripe customer
+    const usage = await getUserUsage(uid);
+    let customerId = usage.stripeCustomerId;
+
+    if (!customerId) {
+      // Get user email from Firebase Auth
+      const userRecord = await admin.auth().getUser(uid);
+      const customer = await stripe.customers.create({
+        email: userRecord.email,
+        metadata: { firebaseUid: uid },
+      });
+      customerId = customer.id;
+
+      // Save Stripe customer ID
+      await db.collection('userUsage').doc(uid).set(
+        { stripeCustomerId: customerId },
+        { merge: true }
+      );
+    }
+
+    // Determine redirect URLs
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${frontendUrl}?billing=success`,
+      cancel_url: `${frontendUrl}?billing=cancel`,
+      metadata: { firebaseUid: uid },
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Checkout error:', error);
+    if (error instanceof Error && error.message.includes('authorization')) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+/**
+ * Stripe webhook — handles subscription lifecycle events.
+ * Requires: STRIPE_WEBHOOK_SECRET env var on Railway.
+ */
+app.post('/api/billing/webhook', async (req, res) => {
+  if (!stripe) {
+    res.status(500).send('Billing not configured');
+    return;
+  }
+
+  const sig = req.headers['stripe-signature'] as string;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    res.status(500).send('Webhook not configured');
+    return;
+  }
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err);
+    res.status(400).send('Webhook signature verification failed');
+    return;
+  }
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const uid = session.metadata?.firebaseUid;
+        if (uid && session.subscription) {
+          await db.collection('userUsage').doc(uid).set({
+            tier: 'premium',
+            aiMessageCount: 0,
+            aiMessageResetDate: admin.firestore.Timestamp.fromDate(getNextResetDate()),
+            stripeCustomerId: session.customer as string,
+            subscriptionId: session.subscription as string,
+          }, { merge: true });
+          console.log(`User ${uid} upgraded to premium`);
+        }
+        break;
+      }
+
+      case 'customer.subscription.deleted':
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+
+        // Find user by Stripe customer ID
+        const snapshot = await db.collection('userUsage')
+          .where('stripeCustomerId', '==', customerId)
+          .limit(1)
+          .get();
+
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0];
+          if (subscription.status === 'active' || subscription.status === 'trialing') {
+            await doc.ref.set({ tier: 'premium' }, { merge: true });
+          } else {
+            // Cancelled, unpaid, past_due, etc.
+            await doc.ref.set({
+              tier: 'free',
+              subscriptionId: admin.firestore.FieldValue.delete(),
+            }, { merge: true });
+            console.log(`User ${doc.id} downgraded to free (subscription ${subscription.status})`);
+          }
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    res.status(500).send('Webhook processing error');
+  }
+});
+
+/**
+ * Get billing status for the current user.
+ */
+app.get('/api/billing/status', async (req, res) => {
+  try {
+    const { uid } = await verifyAuth(req);
+    const usage = await getUserUsage(uid);
+
+    const result: {
+      tier: UserTier;
+      hasSubscription: boolean;
+      subscriptionId?: string;
+    } = {
+      tier: usage.tier,
+      hasSubscription: !!usage.subscriptionId,
+    };
+
+    if (usage.subscriptionId) {
+      result.subscriptionId = usage.subscriptionId;
+    }
+
+    res.json(result);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('authorization')) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to fetch billing status' });
+  }
+});
+
+/**
+ * Create a Stripe Customer Portal session for managing subscription.
+ */
+app.post('/api/billing/portal', async (req, res) => {
+  try {
+    if (!stripe) {
+      res.status(500).json({ error: 'Billing not configured' });
+      return;
+    }
+
+    const { uid } = await verifyAuth(req);
+    const usage = await getUserUsage(uid);
+
+    if (!usage.stripeCustomerId) {
+      res.status(400).json({ error: 'No billing account found' });
+      return;
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: usage.stripeCustomerId,
+      return_url: frontendUrl,
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error('Portal error:', error);
+    if (error instanceof Error && error.message.includes('authorization')) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to create portal session' });
   }
 });
 
