@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -38,4 +39,9 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const functions = getFunctions(app);
 export const isFirebaseConfigured = missingVars.length === 0;
+
+// Initialize Analytics only in browser environments that support it
+isSupported().then((supported) => {
+  if (supported) getAnalytics(app);
+});
 

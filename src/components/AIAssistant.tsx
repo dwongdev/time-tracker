@@ -247,33 +247,19 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
-              <p className="text-xs text-gray-500">Powered by Claude</p>
             </div>
           </div>
-          {usage && (
-            <div className="flex items-center gap-2">
-              {usage.tier === 'premium' ? (
-                <button
-                  onClick={async () => {
-                    try { await openCustomerPortal(); }
-                    catch { alert('Failed to open billing portal.'); }
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors cursor-pointer"
-                  title="Manage subscription"
-                >
-                  Premium
-                </button>
-              ) : (
-                <div className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
-                  Free
-                </div>
-              )}
-              <div className={`text-xs font-medium ${
-                usage.remaining <= 1 ? 'text-red-500' : 'text-gray-500'
-              }`}>
-                {usage.remaining}/{usage.limit} left
-              </div>
-            </div>
+          {usage && usage.tier === 'premium' && (
+            <button
+              onClick={async () => {
+                try { await openCustomerPortal(); }
+                catch { alert('Failed to open billing portal.'); }
+              }}
+              className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors cursor-pointer"
+              title="Manage subscription"
+            >
+              Premium
+            </button>
           )}
         </div>
       </div>
@@ -472,12 +458,12 @@ export default function AIAssistant({ timeBlocks, onApplySchedule, messages, set
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-purple-900">
-                {usage?.tier === 'free' ? "You've used all 5 free messages" : 'Monthly limit reached'}
+                {usage?.tier === 'free' ? "You've reached the free plan limit" : 'Monthly limit reached'}
               </p>
               <p className="text-xs text-purple-700 mt-0.5">
                 {usage?.tier === 'free'
-                  ? 'Upgrade to Premium for 500 messages per month.'
-                  : 'Your message limit will reset on the 1st of next month.'}
+                  ? 'Upgrade to Premium to keep using the AI assistant.'
+                  : 'Your limit will reset on the 1st of next month.'}
               </p>
               {usage?.tier === 'free' && (
                 <button

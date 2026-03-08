@@ -4,8 +4,6 @@ import type { Schedule } from '../types/schedule';
 import { getUserSchedules } from '../services/scheduleService';
 import { getBillingStatus, createCheckoutSession, openCustomerPortal } from '../services/billingService';
 import type { BillingStatus } from '../services/billingService';
-import { getUsage } from '../services/aiService';
-import type { UsageInfo } from '../services/aiService';
 import Footer from './Footer';
 
 interface SettingsPageProps {
@@ -18,7 +16,6 @@ export default function SettingsPage({ user }: SettingsPageProps) {
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
   const [billing, setBilling] = useState<BillingStatus | null>(null);
-  const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [billingLoading, setBillingLoading] = useState(true);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -42,12 +39,8 @@ export default function SettingsPage({ user }: SettingsPageProps) {
   useEffect(() => {
     const loadBilling = async () => {
       try {
-        const [billingData, usageData] = await Promise.all([
-          getBillingStatus(),
-          getUsage(),
-        ]);
+        const billingData = await getBillingStatus();
         setBilling(billingData);
-        setUsage(usageData);
       } catch {
         // User may not have billing set up yet
       } finally {
@@ -212,16 +205,10 @@ export default function SettingsPage({ user }: SettingsPageProps) {
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
                     {billing?.tier === 'premium'
-                      ? '500 AI messages per month'
-                      : '5 AI messages total'}
+                      ? 'Full AI assistant access'
+                      : 'Basic AI assistant access'}
                   </p>
                 </div>
-                {usage && (
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">{usage.remaining}</p>
-                    <p className="text-xs text-gray-500">of {usage.limit} remaining</p>
-                  </div>
-                )}
               </div>
 
               {/* Action Buttons */}
@@ -254,7 +241,7 @@ export default function SettingsPage({ user }: SettingsPageProps) {
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold text-purple-900">Upgrade to Premium</p>
-                      <p className="text-sm text-purple-700 mt-0.5">Get 500 AI messages per month, priority support, and more.</p>
+                      <p className="text-sm text-purple-700 mt-0.5">Full AI assistant access to help plan and optimize your schedule.</p>
                       <div className="flex items-baseline gap-1 mt-2">
                         <span className="text-2xl font-bold text-purple-900">$8</span>
                         <span className="text-sm text-purple-600">/month</span>
