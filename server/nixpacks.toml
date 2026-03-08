@@ -1,0 +1,9 @@
+[variables]
+# Prevent Nixpacks from requiring these at build time — they're runtime-only
+STRIPE_SECRET_KEY = ""
+STRIPE_PRICE_ID = ""
+STRIPE_WEBHOOK_SECRET = ""
+CLAUDE_API_KEY = ""
+GOOGLE_SERVICE_ACCOUNT = ""
+FIREBASE_PROJECT_ID = ""
+FRONTEND_URL = ""
