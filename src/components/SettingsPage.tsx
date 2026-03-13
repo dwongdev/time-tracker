@@ -245,7 +245,7 @@ export default function SettingsPage({ user }: SettingsPageProps) {
                       <p className="font-semibold text-purple-900">Upgrade to Premium</p>
                       <p className="text-sm text-purple-700 mt-0.5">Full AI assistant access to help plan and optimize your schedule.</p>
                       <div className="flex items-baseline gap-1 mt-2">
-                        <span className="text-2xl font-bold text-purple-900">$8</span>
+                        <span className="text-2xl font-bold text-purple-900">$5</span>
                         <span className="text-sm text-purple-600">/month</span>
                       </div>
                       <button
