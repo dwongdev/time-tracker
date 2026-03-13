@@ -422,6 +422,55 @@ export default function CircularChart({
       const labelX = center + labelRadius * Math.cos(midAngleRad);
       const labelY = center + labelRadius * Math.sin(midAngleRad);
 
+      // Calculate available arc length at the label radius for smart text fitting
+      const arcSpanDeg = endAngle - startAngle;
+      const arcLength = (arcSpanDeg / 360) * 2 * Math.PI * labelRadius;
+      const radialWidth = radius - innerRadius;
+
+      // Estimate how many characters fit: ~7px per char at text-xs (12px font), ~6px at 10px font
+      const charWidthLarge = 7;
+      const charWidthSmall = 5.5;
+      // Use the smaller of arc length and radial width as the constraining dimension,
+      // but arc length is the primary constraint for text along the arc
+      const availableWidth = Math.min(arcLength * 0.85, radialWidth * 1.2);
+
+      // Determine font size and label text
+      let fontSize: number;
+      let displayLabel: string;
+
+      if (duration < 20) {
+        // Very small blocks: hide text entirely (tooltip on hover is enough)
+        fontSize = 0;
+        displayLabel = '';
+      } else if (availableWidth < charWidthSmall * 2) {
+        // Too small for any text
+        fontSize = 0;
+        displayLabel = '';
+      } else if (availableWidth < charWidthLarge * block.label.length) {
+        // Text doesn't fit at normal size — try smaller font first
+        fontSize = 10;
+        const maxChars = Math.floor(availableWidth / charWidthSmall);
+        if (maxChars < 3) {
+          fontSize = 0;
+          displayLabel = '';
+        } else if (maxChars < block.label.length) {
+          displayLabel = block.label.slice(0, maxChars - 1) + '\u2026';
+        } else {
+          displayLabel = block.label;
+        }
+      } else {
+        // Text fits at normal size
+        fontSize = 12;
+        displayLabel = block.label;
+      }
+
+      // Rotate text to follow the arc direction for readability
+      const rotationAngle = midAngle;
+      // Flip text if it would be upside-down (between 90° and 270° on the circle)
+      const adjustedRotation = (rotationAngle > 90 && rotationAngle < 270)
+        ? rotationAngle + 180
+        : rotationAngle;
+
       return (
         <g key={block.id}>
           <path
@@ -455,15 +504,17 @@ export default function CircularChart({
               setTooltipPos(null);
             }}
           />
-          {duration >= 30 && (
+          {fontSize > 0 && displayLabel && (
             <text
               x={labelX}
               y={labelY}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="text-xs font-semibold fill-white pointer-events-none"
+              transform={`rotate(${adjustedRotation}, ${labelX}, ${labelY})`}
+              className="font-semibold fill-white pointer-events-none"
+              style={{ fontSize: `${fontSize}px` }}
             >
-              {block.label}
+              {displayLabel}
             </text>
           )}
         </g>

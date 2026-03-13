@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { signIn, signUp, signOutUser, googleSignIn, resetPassword } from '../auth';
+import { signIn, signUp, signOutUser, googleSignIn, resetPassword, resendVerificationEmail } from '../auth';
 import Modal from 'react-modal';
 
 Modal.setAppElement('#root');
@@ -42,10 +42,10 @@ export default function AuthButtons() {
       setError('Please fill in all fields');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       await signIn(email, password);
       closeModal();
@@ -61,17 +61,19 @@ export default function AuthButtons() {
       setError('Please fill in all fields');
       return;
     }
-    
+
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
-    
+
     try {
       await signUp(email, password);
+      // User stays signed in and can use the app
+      // Verification email is sent (in auth.ts) but not required
       closeModal();
     } catch (error: unknown) {
       setError(getErrorMessage(error));
@@ -178,17 +180,73 @@ export default function AuthButtons() {
     </svg>
   );
 
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
+
+  const handleResendVerification = async () => {
+    setIsResendingVerification(true);
+    setVerificationMessage('');
+
+    try {
+      await resendVerificationEmail();
+      setVerificationMessage('Verification email sent! Check your inbox.');
+      setTimeout(() => setVerificationMessage(''), 5000);
+    } catch (error: unknown) {
+      setVerificationMessage('Failed to send verification email. Please try again.');
+      setTimeout(() => setVerificationMessage(''), 5000);
+    } finally {
+      setIsResendingVerification(false);
+    }
+  };
+
+  const handleReloadUser = () => {
+    user?.reload().then(() => {
+      // Force a re-render by setting user again
+      setUser(auth.currentUser);
+    });
+  };
+
   if (user) {
     return (
-      <div className="fixed top-4 right-4 flex items-center gap-4 bg-white/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-white/80">
-        <span className="text-sm text-gray-700 font-medium">{user.email}</span>
-        <button
-          className="bg-red-500 text-white border-none px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-red-600 hover:-translate-y-0.5"
-          onClick={signOutUser}
-        >
-          Sign Out
-        </button>
-      </div>
+      <>
+        {!user.emailVerified && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white px-4 py-3 text-center text-sm font-medium shadow-lg">
+            <div className="max-w-4xl mx-auto flex items-center justify-center gap-4 flex-wrap">
+              <span>⚠️ Please verify your email address to access all features.</span>
+              <button
+                onClick={handleResendVerification}
+                disabled={isResendingVerification}
+                className="bg-white text-amber-600 px-3 py-1 rounded-md text-xs font-semibold hover:bg-amber-50 transition-colors disabled:opacity-50"
+              >
+                {isResendingVerification ? 'Sending...' : 'Resend Email'}
+              </button>
+              <button
+                onClick={handleReloadUser}
+                className="bg-white text-amber-600 px-3 py-1 rounded-md text-xs font-semibold hover:bg-amber-50 transition-colors"
+              >
+                Already Verified?
+              </button>
+              {verificationMessage && (
+                <span className="text-xs bg-white/20 px-3 py-1 rounded-md">{verificationMessage}</span>
+              )}
+            </div>
+          </div>
+        )}
+        <div className={`fixed ${!user.emailVerified ? 'top-16' : 'top-4'} right-4 flex items-center gap-4 bg-white/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-white/80 transition-all`}>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700 font-medium">{user.email}</span>
+            {user.emailVerified && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" title="Email verified">✓</span>
+            )}
+          </div>
+          <button
+            className="bg-red-500 text-white border-none px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-red-600 hover:-translate-y-0.5"
+            onClick={signOutUser}
+          >
+            Sign Out
+          </button>
+        </div>
+      </>
     );
   }
 

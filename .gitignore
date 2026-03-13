@@ -24,6 +24,12 @@ dist-ssr
 *.sw?
 .env
 
+# Firebase Functions compiled output
+functions/lib
+
+# Railway server compiled output
+server/dist
+
 # Claude Code skills
 .claude
 *-skill.zip
