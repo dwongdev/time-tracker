@@ -590,4 +590,7 @@ app.post('/api/billing/portal', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`DayChart API server running on port ${PORT}`);
+  console.log(`Stripe configured: ${!!stripe}`);
+  console.log(`Stripe Price ID set: ${!!process.env.STRIPE_PRICE_ID}`);
+  console.log(`Firebase Project ID: ${process.env.FIREBASE_PROJECT_ID}`);
 });

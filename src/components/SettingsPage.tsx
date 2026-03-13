@@ -186,6 +186,8 @@ export default function SettingsPage({ user }: SettingsPageProps) {
               <div className="h-4 bg-gray-200 rounded w-1/3"></div>
               <div className="h-4 bg-gray-200 rounded w-1/2"></div>
             </div>
+          ) : !billing ? (
+            <p className="text-sm text-gray-500">Could not load subscription info. Please try again later.</p>
           ) : (
             <div className="space-y-4">
               {/* Current Plan */}
