@@ -58,7 +58,7 @@ export default function CircularChart({
 
   // On mobile, account for title/description (~70px) + bottom actions (~120px)
   // On desktop, account for header and other UI
-  const mobileHeightOffset = 190; // 70 + 120
+  const mobileHeightOffset = 145; // 48 (top toolbar) + 64 (bottom nav) + ~33 buffer
   const desktopHeightOffset = 140; // Further reduced for bigger, higher circle
   const heightBound = viewport.height
     ? viewport.height - (isMobile ? mobileHeightOffset : desktopHeightOffset) - (estimatedLabelMargin * 2)
@@ -296,8 +296,12 @@ export default function CircularChart({
     return labels;
   };
 
-  // Get text color with sufficient contrast for a background color
+  // Get text color with sufficient contrast for a background color.
+  // In dark mode, always use white — dark text on colored blocks looks inconsistent against the dark canvas.
   const getTextColor = (hexColor: string): string => {
+    const isDarkMode = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+    if (isDarkMode) return '#ffffff';
+
     const hex = hexColor.replace('#', '');
     const r = parseInt(hex.slice(0, 2), 16) / 255;
     const g = parseInt(hex.slice(2, 4), 16) / 255;
@@ -614,7 +618,7 @@ export default function CircularChart({
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-950 flex items-center justify-center overflow-auto select-none">
       <div className="w-full max-w-5xl px-1 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-4">
-        <div className="mb-3 sm:mb-4 lg:mb-3 text-center">
+        <div className="mb-3 sm:mb-4 lg:mb-3 text-center hidden sm:block">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
             Circular Overview
           </h3>

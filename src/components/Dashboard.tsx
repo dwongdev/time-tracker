@@ -132,18 +132,22 @@ export default function Dashboard() {
 
     if (savingRef.current) return;
 
-    // Prompt for schedule title
-    const scheduleName = prompt('Enter a title for this schedule:', 'My Schedule');
+    let scheduleName = currentScheduleName;
 
-    // If user cancels, don't save
-    if (!scheduleName) return;
+    // Only prompt for name when saving for the first time (no existing schedule)
+    if (!currentScheduleId) {
+      const input = prompt('Enter a title for this schedule:', 'My Schedule');
+      if (!input) return;
+      scheduleName = input.trim() || 'My Schedule';
+      setCurrentScheduleName(scheduleName);
+    }
 
     savingRef.current = true;
     setSaveStatus('saving');
 
     try {
       const scheduleData = {
-        name: scheduleName.trim() || 'My Schedule',
+        name: scheduleName,
         timeBlocks: timeBlocks,
         isDefault: true,
       };
@@ -445,12 +449,15 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 sm:gap-3">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {currentRoute === 'dashboard' && 'Schedule Editor'}
-                  {currentRoute === 'schedules' && 'My Schedules'}
-                  {currentRoute === 'settings' && 'Settings'}
-                  {currentRoute === 'ai-assistant' && 'AI Assistant'}
-                </h2>
+                {/* Page title — only shown for non-dashboard routes, or dashboard without dropdown */}
+                {(currentRoute !== 'dashboard' || !user) && (
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    {currentRoute === 'dashboard' && 'Schedule Editor'}
+                    {currentRoute === 'schedules' && 'My Schedules'}
+                    {currentRoute === 'settings' && 'Settings'}
+                    {currentRoute === 'ai-assistant' && 'AI Assistant'}
+                  </h2>
+                )}
 
                 {/* Schedule Dropdown - only on Schedule Editor page */}
                 {currentRoute === 'dashboard' && user && (
@@ -629,8 +636,8 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Mobile: Always show circular */}
-            <div className="lg:hidden flex-1">
+            {/* Mobile: Always show circular — pt-12 clears the mobile top toolbar, pb-16 clears bottom nav */}
+            <div className="lg:hidden flex-1 pt-12 pb-16">
               <CircularChart
                 timeBlocks={timeBlocks}
                 onBlockCreated={handleBlockCreated}
@@ -641,7 +648,7 @@ export default function Dashboard() {
         )}
 
         {currentRoute === 'schedules' && (
-          <>
+          <div className="flex-1 flex flex-col pb-16 lg:pb-0 min-h-0">
             {user ? (
               <SchedulesPage
                 user={user}
@@ -675,22 +682,24 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
 
         {currentRoute === 'ai-assistant' && (
-          <AIAssistant
-            timeBlocks={timeBlocks}
-            messages={aiMessages}
-            setMessages={setAiMessages}
-            onApplySchedule={(newBlocks) => {
-              setTimeBlocks(newBlocks);
-            }}
-          />
+          <div className="flex-1 flex flex-col pb-16 lg:pb-0 overflow-hidden min-h-0">
+            <AIAssistant
+              timeBlocks={timeBlocks}
+              messages={aiMessages}
+              setMessages={setAiMessages}
+              onApplySchedule={(newBlocks) => {
+                setTimeBlocks(newBlocks);
+              }}
+            />
+          </div>
         )}
 
         {currentRoute === 'settings' && (
-          <>
+          <div className="flex-1 flex flex-col pb-16 lg:pb-0 min-h-0">
             {user ? (
               <SettingsPage
                 user={user}
@@ -724,98 +733,114 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Mobile Bottom Actions - Only on Dashboard */}
+      {/* Mobile Top Toolbar — dashboard controls */}
       {currentRoute === 'dashboard' && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40 px-4 py-3">
-          <div className="flex items-center gap-3 mb-2">
-            {!user ? (
-              <button
-                onClick={() => {
-                  const button = authButtonRef.current?.querySelector('button');
-                  if (button) button.click();
-                }}
-                className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Sign In
-              </button>
-            ) : (
-              <button
-                onClick={handleSaveSchedule}
-                disabled={savingRef.current}
-                className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                </svg>
-                {savingRef.current ? 'Saving...' : 'Save'}
-              </button>
-            )}
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 h-12 flex items-center px-3 gap-2">
+          <span className="flex-1 font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">
+            {currentScheduleName}
+          </span>
+          <button
+            onClick={() => setShowScheduleList(true)}
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border-none"
+            title="Schedule list"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+          </button>
+          {user ? (
             <button
-              onClick={() => setShowScheduleList(true)}
-              className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 border border-gray-200"
+              onClick={handleSaveSchedule}
+              disabled={savingRef.current}
+              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 border-none flex items-center gap-1.5"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
+              {saveStatus === 'saving' ? (
+                <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : saveStatus === 'saved' ? (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : null}
+              {savingRef.current ? 'Saving…' : 'Save'}
             </button>
+          ) : (
             <button
-              onClick={handleClearAllBlocks}
-              className="bg-red-50 text-red-600 px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+              onClick={() => setShowSignInPrompt(true)}
+              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors border-none"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              Sign In
             </button>
-          </div>
-          <p className="text-xs text-center text-gray-500">
-            {!user
-              ? "Sign in on desktop to save schedules"
-              : "Use desktop to manage multiple schedules"
-            }
-          </p>
+          )}
         </div>
       )}
 
-      {/* Mobile Save Success Toast */}
-      {saveStatus && (
-        <div className="lg:hidden fixed bottom-24 left-4 right-4 z-50 animate-fade-in">
-          <div className={`rounded-lg px-4 py-3 shadow-lg flex items-center gap-3 ${
-            saveStatus === 'saved' ? 'bg-green-50 border border-green-200' :
-            saveStatus === 'saving' ? 'bg-blue-50 border border-blue-200' :
-            'bg-red-50 border border-red-200'
-          }`}>
-            {saveStatus === 'saved' && (
-              <>
-                <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-medium text-green-800">Schedule saved successfully!</span>
-              </>
-            )}
-            {saveStatus === 'saving' && (
-              <>
-                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-                <span className="text-sm font-medium text-blue-800">Saving schedule...</span>
-              </>
-            )}
-            {saveStatus === 'error' && (
-              <>
-                <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-medium text-red-800">Error saving schedule</span>
-              </>
-            )}
-          </div>
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800">
+        <div className="flex items-stretch h-16">
+          {/* Editor */}
+          <button
+            onClick={() => setCurrentRoute('dashboard')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors border-none bg-transparent px-1 ${
+              currentRoute === 'dashboard' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={currentRoute === 'dashboard' ? 2.5 : 2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Editor
+          </button>
+
+          {/* Schedules */}
+          <button
+            onClick={() => setCurrentRoute('schedules')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors border-none bg-transparent px-1 ${
+              currentRoute === 'schedules' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={currentRoute === 'schedules' ? 2.5 : 2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Schedules
+          </button>
+
+          {/* AI Assistant */}
+          <button
+            onClick={() => setCurrentRoute('ai-assistant')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors border-none bg-transparent px-1 relative ${
+              currentRoute === 'ai-assistant' ? 'text-violet-600 dark:text-violet-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <div className="relative">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={currentRoute === 'ai-assistant' ? 2.5 : 2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              {currentRoute !== 'ai-assistant' && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-violet-500 rounded-full" />
+              )}
+            </div>
+            AI
+          </button>
+
+          {/* Settings */}
+          <button
+            onClick={() => setCurrentRoute('settings')}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors border-none bg-transparent px-1 ${
+              currentRoute === 'settings' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={currentRoute === 'settings' ? 2.5 : 2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={currentRoute === 'settings' ? 2.5 : 2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Settings
+          </button>
         </div>
-      )}
+      </nav>
+
 
       {/* Schedule List Panel */}
       {showScheduleList && (
