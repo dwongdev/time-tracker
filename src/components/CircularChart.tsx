@@ -284,7 +284,9 @@ export default function CircularChart({
           y={y}
           textAnchor="middle"
           dominantBaseline="middle"
-          className="text-xs font-semibold fill-gray-700"
+          fill="var(--chart-label)"
+          fontSize="12"
+          fontWeight="600"
         >
           {formatHourTo12Hour(hour)}
         </text>
@@ -292,6 +294,19 @@ export default function CircularChart({
     }
 
     return labels;
+  };
+
+  // Get text color with sufficient contrast for a background color
+  const getTextColor = (hexColor: string): string => {
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const rL = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+    const gL = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+    const bL = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+    const luminance = 0.2126 * rL + 0.7152 * gL + 0.0722 * bL;
+    return luminance > 0.4 ? '#1f2937' : '#ffffff';
   };
 
   // Render hour tick marks
@@ -312,7 +327,7 @@ export default function CircularChart({
           y1={y1}
           x2={x2}
           y2={y2}
-          stroke="#9ca3af"
+          stroke="var(--chart-tick)"
           strokeWidth="2"
         />
       );
@@ -350,7 +365,7 @@ export default function CircularChart({
         <path
           key={`segment-${hour}`}
           d={path}
-          fill="rgba(243, 244, 246, 0.9)" // subtle gray fill
+          fill="var(--chart-segment)"
           stroke="none"
         />
       );
@@ -375,7 +390,7 @@ export default function CircularChart({
           y1={y1}
           x2={x2}
           y2={y2}
-          stroke="rgba(209, 213, 219, 0.9)" // gray-300
+          stroke="var(--chart-divider)"
           strokeWidth="1.5"
         />
       );
@@ -471,12 +486,14 @@ export default function CircularChart({
         ? rotationAngle + 180
         : rotationAngle;
 
+      const textColor = getTextColor(block.color);
+
       return (
         <g key={block.id}>
           <path
             d={path}
             fill={block.color}
-            stroke="white"
+            stroke="var(--chart-segment)"
             strokeWidth="2"
             className="cursor-pointer transition-opacity hover:opacity-80"
             onClick={() => onBlockClick(block)}
@@ -511,7 +528,9 @@ export default function CircularChart({
               textAnchor="middle"
               dominantBaseline="middle"
               transform={`rotate(${adjustedRotation}, ${labelX}, ${labelY})`}
-              className="font-semibold fill-white pointer-events-none"
+              fill={textColor}
+              fontWeight="600"
+              pointerEvents="none"
               style={{ fontSize: `${fontSize}px` }}
             >
               {displayLabel}
@@ -593,15 +612,12 @@ export default function CircularChart({
   };
 
   return (
-    <div className="flex-1 bg-gray-50 flex items-center justify-center overflow-auto">
+    <div className="flex-1 bg-gray-50 dark:bg-gray-950 flex items-center justify-center overflow-auto select-none">
       <div className="w-full max-w-5xl px-1 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-4">
         <div className="mb-3 sm:mb-4 lg:mb-3 text-center">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
             Circular Overview
           </h3>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">
-            Drag around the dial to create time blocks or tap an existing block to edit.
-          </p>
         </div>
         <div className="flex items-center justify-center w-full">
           <svg
@@ -614,7 +630,9 @@ export default function CircularChart({
               height: 'auto',
               maxHeight: '100vh',
               margin: '0 auto',
-              touchAction: isMobile ? 'none' : 'auto' // Prevent scrolling/gestures on mobile
+              touchAction: isMobile ? 'none' : 'auto',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
             }}
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
@@ -627,7 +645,7 @@ export default function CircularChart({
               cy={center}
               r={radius}
               fill="none"
-              stroke="#d1d5db"
+              stroke="var(--chart-ring)"
               strokeWidth="2"
             />
             <circle
@@ -635,7 +653,7 @@ export default function CircularChart({
               cy={center}
               r={innerRadius}
               fill="none"
-              stroke="#e9d5ff"
+              stroke="var(--chart-inner-ring)"
               strokeWidth="2"
             />
 
@@ -656,6 +674,47 @@ export default function CircularChart({
 
             {/* Hour labels */}
             {renderHourLabels()}
+
+            {/* Empty state affordance */}
+            {timeBlocks.length === 0 && !isDragging && (
+              <g>
+                {/* Dashed interactive ring hint */}
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={(radius + innerRadius) / 2}
+                  fill="none"
+                  stroke="#93c5fd"
+                  strokeWidth="3"
+                  strokeDasharray="8 6"
+                  opacity="0.5"
+                />
+                {/* Instruction text */}
+                <text
+                  x={center}
+                  y={center - 12}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="var(--chart-label)"
+                  fontSize={isMobile ? "13" : "15"}
+                  fontWeight="500"
+                  opacity="0.7"
+                >
+                  {isMobile ? 'Drag on ring' : 'Click & drag on the ring'}
+                </text>
+                <text
+                  x={center}
+                  y={center + 12}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="var(--chart-tick)"
+                  fontSize={isMobile ? "11" : "12"}
+                  opacity="0.6"
+                >
+                  to add time blocks
+                </text>
+              </g>
+            )}
 
             {/* Tooltip */}
             {hoveredBlock && tooltipPos && (
@@ -693,6 +752,23 @@ export default function CircularChart({
             )}
           </svg>
         </div>
+
+        {/* Color legend */}
+        {timeBlocks.length > 0 && (
+          <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center mt-3 px-4">
+            {[...new Map(timeBlocks.map(b => [b.label, b])).values()].map(block => (
+              <div key={block.id} className="flex items-center gap-1.5">
+                <div
+                  className="w-3 h-3 rounded-sm flex-shrink-0"
+                  style={{ backgroundColor: block.color }}
+                />
+                <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                  {block.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

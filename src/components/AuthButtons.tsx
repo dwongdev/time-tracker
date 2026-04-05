@@ -232,11 +232,11 @@ export default function AuthButtons() {
             </div>
           </div>
         )}
-        <div className={`fixed ${!user.emailVerified ? 'top-16' : 'top-4'} right-4 flex items-center gap-4 bg-white/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-white/80 transition-all`}>
+        <div className={`fixed ${!user.emailVerified ? 'top-16' : 'top-4'} right-4 flex items-center gap-4 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md px-4 py-3 rounded-xl shadow-lg border border-white/80 dark:border-gray-700/80 transition-all`}>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-700 font-medium">{user.email}</span>
+            <span className="text-sm text-gray-700 dark:text-gray-200 font-medium">{user.email}</span>
             {user.emailVerified && (
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full" title="Email verified">✓</span>
+              <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full" title="Email verified">✓</span>
             )}
           </div>
           <button
@@ -250,6 +250,7 @@ export default function AuthButtons() {
     );
   }
 
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
   const modalStyles = {
     overlay: {
       position: 'fixed' as const,
@@ -257,7 +258,7 @@ export default function AuthButtons() {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
       backdropFilter: 'blur(8px)',
       display: 'flex',
       alignItems: 'center',
@@ -266,14 +267,18 @@ export default function AuthButtons() {
     },
     content: {
       position: 'relative' as const,
-      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+      background: isDark
+        ? 'linear-gradient(135deg, #1e2130 0%, #161922 100%)'
+        : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
       padding: '3rem 2.5rem',
       borderRadius: '24px',
       maxWidth: '440px',
       width: '90%',
       maxHeight: '90vh',
       overflowY: 'auto' as const,
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.8)',
+      boxShadow: isDark
+        ? '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06)'
+        : '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.8)',
       border: 'none',
       inset: 'auto',
     },
@@ -281,14 +286,24 @@ export default function AuthButtons() {
 
   return (
     <>
-      <div className="fixed top-2.5 right-2.5">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 sm:px-8 py-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <span className="text-lg font-bold text-gray-900 dark:text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
+            DayChart
+          </span>
+        </div>
         <button
-          className="bg-gradient-to-r from-blue-500 to-blue-800 text-white border-none px-6 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-0.5"
+          className="bg-blue-600 text-white border-none px-5 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5 active:translate-y-0"
           onClick={() => setShowModal(true)}
         >
           Sign In
         </button>
-      </div>
+      </nav>
 
       <Modal
         isOpen={showModal}
@@ -306,10 +321,10 @@ export default function AuthButtons() {
         </button>
 
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
             {mode === 'forgot' ? 'Reset Password' : 'Welcome to DayChart'}
           </h2>
-          <p className="text-slate-600 text-base font-normal m-0">
+          <p className="text-slate-600 dark:text-slate-400 text-base font-normal m-0">
             {mode === 'forgot'
               ? 'Enter your email to receive a password reset link'
               : 'Manage your time visually'}

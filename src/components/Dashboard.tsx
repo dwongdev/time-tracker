@@ -26,7 +26,7 @@ import { validateTimeBlock, sortTimeBlocks } from '../utils/timeUtils';
 
 const availableColors = [
   '#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa',
-  '#fb923c', '#a3e635', '#f472b6', '#38bdf8', '#c084fc',
+  '#fb923c', '#65a30d', '#f472b6', '#38bdf8', '#c084fc',
 ];
 
 export default function Dashboard() {
@@ -60,6 +60,28 @@ export default function Dashboard() {
       timestamp: new Date(),
     },
   ]);
+
+  // Dark mode
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' ||
+        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
+
+  // Apply dark mode class on mount and toggle
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  const toggleDarkMode = () => setIsDark(prev => !prev);
 
   // Ref to track if we're currently saving
   const savingRef = useRef(false);
@@ -271,10 +293,10 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
     );
@@ -283,95 +305,116 @@ export default function Dashboard() {
   // Landing page for non-authenticated users
   if (!user && !isGuestMode) {
     return (
-      <div className="h-screen overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="min-h-screen overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-950">
+        {/* Nav bar rendered by AuthButtons */}
         <AuthButtons />
-        <div className="flex items-center justify-center p-4 sm:p-8 pt-20 sm:pt-24 pb-8 min-h-screen">
-          <div className="max-w-3xl w-full">
-            <div className="text-center mb-8 sm:mb-12">
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-3 sm:mb-4 tracking-tight">
+
+        <div className="flex items-center justify-center p-4 sm:p-8 pt-24 sm:pt-28 pb-16 min-h-screen">
+          <div className="max-w-2xl w-full">
+
+            {/* Hero */}
+            <div className="text-center mb-10 sm:mb-14">
+              <h1
+                className="text-6xl sm:text-7xl lg:text-8xl font-black text-gray-900 dark:text-white mb-4 tracking-tight leading-none"
+                style={{ fontFamily: 'Outfit, sans-serif' }}
+              >
                 DayChart
               </h1>
-              <p className="text-lg sm:text-xl text-gray-600">
-                Visual time management reimagined
+              <p className="text-lg sm:text-xl text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                Visual time management — plan your day on a 24-hour clock dial
               </p>
               {/* Mobile performance note */}
-              <div className="lg:hidden mt-4 px-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                  For the best experience, we recommend using DayChart on desktop
+              <div className="lg:hidden mt-5 px-4">
+                <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-full px-4 py-2 text-sm text-blue-700 dark:text-blue-300">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Best experienced on desktop
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-12">
-              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Primary CTA */}
+            <div className="text-center mb-10 sm:mb-14">
+              <button
+                onClick={() => setIsGuestMode(true)}
+                className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-500/30 hover:bg-blue-700 hover:shadow-2xl hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all border-none"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Try It Free
+              </button>
+              <p className="mt-4 text-sm text-gray-400 dark:text-gray-500">
+                No account needed
+                {isFirebaseConfigured && (
+                  <>
+                    {' ·  '}
+                    <span
+                      onClick={() => {
+                        const btn = document.querySelector<HTMLButtonElement>('nav button');
+                        if (btn) btn.click();
+                      }}
+                      className="text-blue-500 cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                    >
+                      Sign in
+                    </span>
+                    {' '}to save & sync across devices
+                  </>
+                )}
+              </p>
+            </div>
+
+            {/* Feature cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-10">
+              <div className="group bg-gray-50 dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md transition-all">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Flexible Views</h3>
-                <p className="text-sm text-gray-600">Linear or circular timeline with customizable start times</p>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5">Circular + Linear Views</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">24-hour clock dial or linear timeline — see your whole day at a glance</p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="group bg-gray-50 dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 hover:border-purple-200 dark:hover:border-purple-800 hover:shadow-md transition-all">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Drag to Create</h3>
-                <p className="text-sm text-gray-600">Simply drag on the timeline to create time blocks instantly</p>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5">Drag to Create</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Click and drag on the dial or timeline to create color-coded time blocks instantly</p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="group bg-gray-50 dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 hover:border-green-200 dark:hover:border-green-800 hover:shadow-md transition-all">
+                <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Multiple Schedules</h3>
-                <p className="text-sm text-gray-600">Create and manage different schedules for work, personal, and more</p>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5">Multiple Schedules</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Save separate schedules for work days, weekends, travel, and more</p>
               </div>
 
-              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+              <div className="group bg-gray-50 dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 hover:border-violet-200 dark:hover:border-violet-800 hover:shadow-md transition-all">
+                <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Auto-Save</h3>
-                <p className="text-sm text-gray-600">Your schedules automatically sync across all your devices</p>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5">AI Assistant</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Describe your ideal day in plain text and let AI build the schedule for you</p>
               </div>
             </div>
 
             {!isFirebaseConfigured && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-center">
-                <p className="text-sm text-amber-800">
-                  Firebase not configured. Add your config to enable authentication.
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 text-center">
+                <p className="text-sm text-amber-800 dark:text-amber-300">
+                  Firebase not configured. Add your config to enable authentication and sync.
                 </p>
               </div>
             )}
-
-            <div className="text-center space-y-4">
-              <p className="text-gray-600">Get started by signing in above</p>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-gradient-to-br from-gray-50 via-white to-gray-50 text-gray-500">or</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsGuestMode(true)}
-                className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow-md"
-              >
-                Try Without Signing In
-              </button>
-              <p className="text-xs text-gray-500">
-                Try the app now, sign in later to save your schedules
-              </p>
-            </div>
           </div>
         </div>
         <Footer />
@@ -380,7 +423,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Sidebar - Desktop Only */}
       <div className="hidden lg:block">
         <Sidebar
@@ -390,41 +433,19 @@ export default function Dashboard() {
           }}
           userEmail={user?.email}
           isGuestMode={isGuestMode}
+          isDark={isDark}
+          onToggleDark={toggleDarkMode}
         />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Guest Mode Banner - Hidden on mobile */}
-        {!user && isGuestMode && (
-          <div className="hidden lg:flex bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 items-center justify-center">
-            <div className="flex items-center gap-3 text-center">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-sm font-medium">
-                You're in guest mode.{' '}
-                <span
-                  onClick={() => {
-                    const button = authButtonRef.current?.querySelector('button');
-                    if (button) button.click();
-                  }}
-                  className="underline cursor-pointer hover:text-blue-100 transition-colors"
-                >
-                  Sign in
-                </span>{' '}
-                to save your schedules!
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Header - Hidden on mobile and on AI Assistant (which has its own header) */}
-        <header className={`bg-white border-b border-gray-200 px-4 sm:px-8 py-2 sm:py-3 lg:py-4 ${currentRoute === 'ai-assistant' ? 'hidden' : 'hidden lg:block'}`}>
+        <header className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-8 py-2 sm:py-3 lg:py-4 ${currentRoute === 'ai-assistant' ? 'hidden' : 'hidden lg:block'}`}>
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 sm:gap-3">
-                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {currentRoute === 'dashboard' && 'Schedule Editor'}
                   {currentRoute === 'schedules' && 'My Schedules'}
                   {currentRoute === 'settings' && 'Settings'}
@@ -436,10 +457,13 @@ export default function Dashboard() {
                   <div className="relative">
                     <button
                       onClick={() => setShowScheduleDropdown(!showScheduleDropdown)}
-                      className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all shadow-sm"
                     >
-                      <span className="truncate max-w-[150px]">{currentScheduleName}</span>
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="truncate max-w-[160px]">{currentScheduleName}</span>
+                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
@@ -448,7 +472,7 @@ export default function Dashboard() {
                     {showScheduleDropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowScheduleDropdown(false)} />
-                        <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-20 max-h-96 overflow-y-auto">
+                        <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-20 max-h-96 overflow-y-auto">
                           {/* Current Schedules */}
                           <div className="px-2 py-1">
                             {allSchedules.map(schedule => (
@@ -456,7 +480,9 @@ export default function Dashboard() {
                                 key={schedule.id}
                                 onClick={() => handleScheduleSelect(schedule.id)}
                                 className={`w-full px-3 py-2.5 text-left text-sm rounded-lg transition-colors flex items-center justify-between group ${
-                                  schedule.id === currentScheduleId ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                                  schedule.id === currentScheduleId
+                                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                                 }`}
                               >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -473,7 +499,7 @@ export default function Dashboard() {
                           </div>
 
                           {/* Divider */}
-                          <div className="h-px bg-gray-200 my-1" />
+                          <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
 
                           {/* Actions */}
                           <div className="px-2 py-1">
@@ -536,7 +562,7 @@ export default function Dashboard() {
                 {/* Schedule List Toggle */}
                 <button
                   onClick={() => setShowScheduleList(true)}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 text-xs sm:text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 touch-manipulation flex items-center gap-1.5"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs sm:text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 touch-manipulation flex items-center gap-1.5"
                   title="View schedule as list"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -555,13 +581,13 @@ export default function Dashboard() {
                 </button>
 
                 {/* View Toggle */}
-                <div className="inline-flex items-center gap-0.5 sm:gap-1 rounded-full border border-gray-200 bg-gray-100/80 p-0.5 sm:p-1 shadow-inner">
+                <div className="inline-flex items-center gap-0.5 sm:gap-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100/80 dark:bg-gray-800/80 p-0.5 sm:p-1 shadow-inner">
                   <button
                     onClick={() => setViewMode('linear')}
                     className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border text-xs font-medium transition-all whitespace-nowrap touch-manipulation ${
                       viewMode === 'linear'
                         ? 'bg-blue-600 text-white shadow-sm border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-200 hover:bg-white/70'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border-transparent hover:border-gray-200 dark:hover:border-gray-600 hover:bg-white/70 dark:hover:bg-gray-700/70'
                     }`}
                   >
                     Linear
@@ -571,7 +597,7 @@ export default function Dashboard() {
                     className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border text-xs font-medium transition-all whitespace-nowrap touch-manipulation ${
                       viewMode === 'circular'
                         ? 'bg-blue-600 text-white shadow-sm border-blue-600'
-                        : 'text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-200 hover:bg-white/70'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 border-transparent hover:border-gray-200 dark:hover:border-gray-600 hover:bg-white/70 dark:hover:bg-gray-700/70'
                     }`}
                   >
                     Circular
@@ -623,17 +649,17 @@ export default function Dashboard() {
                 onScheduleSelect={handleScheduleSelect}
               />
             ) : (
-              <div className="flex-1 flex items-center justify-center p-8">
+              <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-950">
                 <div className="text-center max-w-md">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                     Sign In to View Schedules
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
                     Create an account or{' '}
                     <span
                       onClick={() => {
@@ -672,18 +698,18 @@ export default function Dashboard() {
                 currentScheduleName=""
               />
             ) : (
-              <div className="flex-1 flex items-center justify-center p-8">
+              <div className="flex-1 flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-950">
                 <div className="text-center max-w-md">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                     Sign In to Access Settings
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
                     <span
                       onClick={() => {
                         const button = authButtonRef.current?.querySelector('button');
@@ -704,7 +730,7 @@ export default function Dashboard() {
 
       {/* Mobile Bottom Actions - Only on Dashboard */}
       {currentRoute === 'dashboard' && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 px-4 py-3">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40 px-4 py-3">
           <div className="flex items-center gap-3 mb-2">
             {!user ? (
               <button
@@ -833,7 +859,7 @@ export default function Dashboard() {
       {/* Sign-In Prompt Modal */}
       {showSignInPrompt && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-8 relative border border-gray-100 dark:border-gray-800">
             <button
               onClick={() => setShowSignInPrompt(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -844,16 +870,16 @@ export default function Dashboard() {
             </button>
 
             <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                 </svg>
               </div>
 
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 Sign In to Save
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 Create a free account to save your schedules and access them from anywhere
               </p>
 
