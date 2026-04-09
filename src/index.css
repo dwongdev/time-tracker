@@ -7,12 +7,19 @@
 /* Chart color tokens updated by dark mode */
 @layer base {
   :root {
+    /* Chart tokens */
     --chart-ring: #d1d5db;
     --chart-inner-ring: #ddd6fe;
     --chart-segment: rgba(243, 244, 246, 0.9);
     --chart-divider: rgba(209, 213, 219, 0.8);
     --chart-tick: #9ca3af;
     --chart-label: #374151;
+    /* Surface tokens */
+    --page-bg: #f9fafb;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --text-primary: #111827;
+    --text-muted: #6b7280;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -20,12 +27,18 @@
   }
 
   .dark {
-    --chart-ring: #374151;
-    --chart-inner-ring: #4c1d95;
-    --chart-segment: rgba(26, 29, 39, 0.8);
-    --chart-divider: rgba(55, 65, 81, 0.6);
-    --chart-tick: #6b7280;
-    --chart-label: #d1d5db;
+    --chart-ring: #2d3748;
+    --chart-inner-ring: #3b2d60;
+    --chart-segment: rgba(20, 22, 32, 0.85);
+    --chart-divider: rgba(45, 55, 72, 0.5);
+    --chart-tick: #4b5563;
+    --chart-label: #e2e8f0;
+    /* Surface tokens */
+    --page-bg: #030712;
+    --surface: #111827;
+    --border: #374151;
+    --text-primary: #f3f4f6;
+    --text-muted: #9ca3af;
     color-scheme: dark;
   }
 

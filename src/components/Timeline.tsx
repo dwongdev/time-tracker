@@ -47,13 +47,10 @@ export default function Timeline({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // On mobile, use a fixed reasonable height that's scrollable
-  // On desktop, use dynamic height based on viewport
-  const timelineHeight = isMobile
-    ? 1400 // Fixed height on mobile for scrollability (about 58px per hour)
-    : viewportHeight
-    ? Math.max(820, viewportHeight - 320) // leave room for header + spacing
-    : 1100;
+  // Use viewport height minus top bar and padding — same approach on mobile and desktop
+  const timelineHeight = viewportHeight
+    ? Math.max(500, viewportHeight - (isMobile ? 80 : 320))
+    : 800;
   const totalDayMinutes = 24 * 60;
 
   const getTimelineSegments = (startMinutes: number, durationMinutes: number) => {
@@ -324,7 +321,7 @@ export default function Timeline({
 
   return (
     <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950">
-      <div className="mx-auto max-w-4xl px-2 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-8 pb-4 sm:pb-8 lg:pb-8">
+      <div className="mx-auto max-w-4xl px-2 sm:px-4 lg:px-6 py-1 sm:py-4 lg:py-8 pb-2 sm:pb-8 lg:pb-8">
         <div className="mb-2 sm:mb-4 lg:mb-6 hidden lg:block">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
             Timeline View

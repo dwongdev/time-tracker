@@ -155,7 +155,7 @@ export default function SchedulesPage({
   }
 
   return (
-    <div className="flex-1 bg-gray-50 dark:bg-gray-950 p-8 overflow-auto">
+    <div className="flex-1 bg-gray-50 dark:bg-gray-950 p-4 sm:p-8 overflow-auto">
       <div className="max-w-4xl mx-auto">
         {/* Header with Create Button */}
         <div className="flex items-center justify-between mb-6">
@@ -172,7 +172,7 @@ export default function SchedulesPage({
           <button
             onClick={() => setIsCreating(true)}
             disabled={schedules.length >= 10}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-none"
+            className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-none whitespace-nowrap flex-shrink-0 text-sm sm:text-base"
             title={schedules.length >= 10 ? 'Maximum 10 schedules reached' : 'Create a new schedule'}
           >
             <span>+ New Schedule</span>
@@ -241,8 +241,8 @@ export default function SchedulesPage({
                     : 'border-gray-200 dark:border-gray-800'
                 }`}
               >
-                <div className="p-6">
-                  <div className="flex items-start justify-between">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="flex-1">
                       {editingScheduleId === schedule.id ? (
                         // Edit mode
@@ -310,7 +310,7 @@ export default function SchedulesPage({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-2 flex-wrap justify-end">
+                    <div className="flex gap-2 flex-wrap sm:justify-end">
                       {schedule.id !== currentScheduleId && (
                         <button
                           onClick={() => onScheduleSelect(schedule.id)}
