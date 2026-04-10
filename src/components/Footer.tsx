@@ -8,24 +8,24 @@ export default function Footer() {
 
   return (
     <>
-      <footer className="bg-white border-t border-gray-200 py-4 px-6 text-center">
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 py-4 px-6 text-center">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center gap-6">
             <span
               onClick={() => setShowAboutModal(true)}
-              className="text-sm text-gray-600 cursor-pointer hover:text-gray-900"
+              className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
             >
               About
             </span>
             <span
               onClick={() => setShowTermsModal(true)}
-              className="text-sm text-gray-600 cursor-pointer hover:text-gray-900"
+              className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
             >
               Terms
             </span>
             <span
               onClick={() => setShowPrivacyModal(true)}
-              className="text-sm text-gray-600 cursor-pointer hover:text-gray-900"
+              className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
             >
               Privacy
             </span>
@@ -150,7 +150,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-6 text-gray-700">
-            <p className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</p>
+            <p className="text-sm text-gray-500">Last updated: March 15, 2026</p>
 
             <section>
               <h3 className="font-semibold text-gray-900 mb-2">1. Acceptance of Terms</h3>
@@ -227,7 +227,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-6 text-gray-700">
-            <p className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString()}</p>
+            <p className="text-sm text-gray-500">Last updated: March 15, 2026</p>
 
             <section>
               <h3 className="font-semibold text-gray-900 mb-2">1. Your Data is Private</h3>
