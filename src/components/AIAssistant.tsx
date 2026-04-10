@@ -5,7 +5,7 @@ import type { ChatMessage, UsageInfo } from '../services/aiService';
 import { formatTo12Hour } from '../utils/timeUtils';
 import { auth } from '../firebase';
 import { resendVerificationEmail } from '../auth';
-import { createCheckoutSession, openCustomerPortal } from '../services/billingService';
+import { createCheckoutSession } from '../services/billingService';
 
 /** Simple markdown-to-JSX renderer for AI responses */
 function renderMarkdown(text: string): React.ReactNode[] {
