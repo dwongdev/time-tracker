@@ -14,12 +14,14 @@ interface CircularChartProps {
   timeBlocks: TimeBlock[];
   onBlockCreated: (startTime: string, endTime: string) => void;
   onBlockClick: (block: TimeBlock) => void;
+  activeBlock?: TimeBlock | null;
 }
 
 export default function CircularChart({
   timeBlocks,
   onBlockCreated,
   onBlockClick,
+  activeBlock,
 }: CircularChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -27,14 +29,13 @@ export default function CircularChart({
   const [dragProgress, setDragProgress] = useState(0);
   const [hasMovedEnough, setHasMovedEnough] = useState(false);
   const [hoveredBlock, setHoveredBlock] = useState<TimeBlock | null>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 0,
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
   }));
   const lastDragMinutesRef = useRef<number | null>(null);
 
-  const DRAG_THRESHOLD_MINUTES = 5; // minutes to rotate before starting drag
+  const DRAG_THRESHOLD_MINUTES = 5;
 
   useEffect(() => {
     const handleResize = () => {
@@ -52,31 +53,25 @@ export default function CircularChart({
   const defaultSize = 720;
   const isMobile = viewport.width < 1024;
 
-  // Calculate label margins first (needed for total canvas size)
-  const baseLabelMargin = isMobile ? 24 : 35; // Even smaller desktop margin
+  const baseLabelMargin = isMobile ? 24 : 35;
   const estimatedLabelMargin = baseLabelMargin;
 
-  // On mobile, account for title/description (~70px) + bottom actions (~120px)
-  // On desktop, account for header and other UI
-  const mobileHeightOffset = 190; // 70 + 120
-  const desktopHeightOffset = 140; // Further reduced for bigger, higher circle
+  const mobileHeightOffset = 80; // floating pill only, no top toolbar or bottom nav
+  const desktopHeightOffset = 80; // floating pill only
   const heightBound = viewport.height
-    ? viewport.height - (isMobile ? mobileHeightOffset : desktopHeightOffset) - (estimatedLabelMargin * 2)
+    ? viewport.height - (isMobile ? mobileHeightOffset : desktopHeightOffset) - estimatedLabelMargin * 2
     : defaultSize;
 
-  // Responsive width calculation: account for padding AND label margins
-  const sidePadding = isMobile ? 8 : 24; // Further reduced desktop padding
+  const sidePadding = isMobile ? 8 : 24;
   const widthBound = viewport.width
-    ? viewport.width - sidePadding - (estimatedLabelMargin * 2)
+    ? viewport.width - sidePadding - estimatedLabelMargin * 2
     : defaultSize;
 
-  // Allow smaller minimum size on mobile to fit narrow screens
   const minSize = isMobile ? 280 : 380;
-  const maxSize = isMobile ? 900 : 1400; // Even larger max on desktop
+  const maxSize = isMobile ? 900 : 1400;
   const boundedSize = Math.min(Math.max(Math.min(heightBound, widthBound), minSize), maxSize);
   const chartSize = Number.isFinite(boundedSize) ? boundedSize : defaultSize;
 
-  // Final label margin based on actual chart size
   const labelMargin = Math.max(baseLabelMargin, chartSize * 0.085);
   const canvasSize = chartSize + labelMargin * 2;
   const center = canvasSize / 2;
@@ -86,23 +81,16 @@ export default function CircularChart({
   const tickInnerOffset = chartSize * 0.01;
   const tickOuterOffset = chartSize * 0.03;
 
-  // Convert angle to time in minutes (0° = top = midnight)
   const angleToMinutes = (angle: number): number => {
-    // Normalize angle to 0-360
     const normalizedAngle = ((angle % 360) + 360) % 360;
-
-    // Convert to minutes (0 degrees at top = midnight)
     const minutes = (normalizedAngle / 360) * (24 * 60);
-
     return snapToFiveMinutes(minutes);
   };
 
-  // Convert minutes to angle (0 = top = midnight)
   const minutesToAngle = (minutes: number): number => {
     return (minutes / (24 * 60)) * 360;
   };
 
-  // Check if a point is within the draggable annulus area
   const isPointInDraggableArea = (e: React.MouseEvent | React.TouchEvent): boolean => {
     if (!svgRef.current) return false;
     const rect = svgRef.current.getBoundingClientRect();
@@ -122,12 +110,9 @@ export default function CircularChart({
     const y = clientY - rect.top - center;
     const distance = Math.sqrt(x * x + y * y);
 
-    // Allow dragging within the annulus (between innerRadius and radius)
-    // Add a small buffer (10px) outside radius for easier interaction
     return distance >= innerRadius * 0.9 && distance <= radius + 10;
   };
 
-  // Get angle from mouse or touch position
   const getAngleFromEvent = (e: React.MouseEvent | MouseEvent | React.TouchEvent | TouchEvent): number => {
     if (!svgRef.current) return 0;
     const rect = svgRef.current.getBoundingClientRect();
@@ -150,7 +135,6 @@ export default function CircularChart({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start dragging if click is within the draggable annulus area
     if (!isPointInDraggableArea(e)) return;
 
     const angle = getAngleFromEvent(e);
@@ -163,10 +147,7 @@ export default function CircularChart({
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    // Only start dragging if touch is within the draggable annulus area
     if (!isPointInDraggableArea(e)) return;
-
-    // Prevent default to stop scrolling when touching the chart
     e.preventDefault();
 
     const angle = getAngleFromEvent(e);
@@ -178,62 +159,61 @@ export default function CircularChart({
     setIsDragging(true);
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!svgRef.current || !isDragging || dragStart === null) return;
+  const handleMouseMove = useCallback(
+    (e: MouseEvent | TouchEvent) => {
+      if (!svgRef.current || !isDragging || dragStart === null) return;
 
-    const rect = svgRef.current.getBoundingClientRect();
-    let clientX: number, clientY: number;
+      const rect = svgRef.current.getBoundingClientRect();
+      let clientX: number, clientY: number;
 
-    if ('touches' in e) {
-      const touch = e.touches[0];
-      if (!touch) return;
-      clientX = touch.clientX;
-      clientY = touch.clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
+      if ('touches' in e) {
+        const touch = e.touches[0];
+        if (!touch) return;
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
 
-    const x = clientX - rect.left - center;
-    const y = clientY - rect.top - center;
-    const angle = (Math.atan2(y, x) * 180) / Math.PI + 90;
-    const minutes = angleToMinutes(angle);
+      const x = clientX - rect.left - center;
+      const y = clientY - rect.top - center;
+      const angle = (Math.atan2(y, x) * 180) / Math.PI + 90;
+      const minutes = angleToMinutes(angle);
 
-    const lastMinutes = lastDragMinutesRef.current ?? minutes;
-    let diff = minutes - lastMinutes;
-    if (diff > 720) diff -= 1440;
-    if (diff < -720) diff += 1440;
+      const lastMinutes = lastDragMinutesRef.current ?? minutes;
+      let diff = minutes - lastMinutes;
+      if (diff > 720) diff -= 1440;
+      if (diff < -720) diff += 1440;
 
-    setDragProgress(prev => {
-      const next = Math.max(0, Math.min(24 * 60, prev + diff));
+      setDragProgress((prev) => {
+        const next = Math.max(0, Math.min(24 * 60, prev + diff));
 
-      // Check if we've moved enough to start dragging
-      if (!hasMovedEnough && next >= DRAG_THRESHOLD_MINUTES) {
-        setHasMovedEnough(true);
-        if ('touches' in e) {
-          e.preventDefault(); // Now prevent scrolling since we're dragging
+        if (!hasMovedEnough && next >= DRAG_THRESHOLD_MINUTES) {
+          setHasMovedEnough(true);
+          if ('touches' in e) {
+            e.preventDefault();
+          }
         }
-      }
 
-      // Only prevent default on touch if we've moved enough
-      if (hasMovedEnough && 'touches' in e) {
-        e.preventDefault();
-      }
+        if (hasMovedEnough && 'touches' in e) {
+          e.preventDefault();
+        }
 
-      return next;
-    });
+        return next;
+      });
 
-    lastDragMinutesRef.current = minutes;
-  }, [isDragging, dragStart, center, hasMovedEnough, DRAG_THRESHOLD_MINUTES]);
+      lastDragMinutesRef.current = minutes;
+    },
+    [isDragging, dragStart, center, hasMovedEnough, DRAG_THRESHOLD_MINUTES]
+  );
 
   const handleMouseUp = useCallback(() => {
-    // Only create block if we moved enough to start dragging
     if (isDragging && hasMovedEnough && dragStart !== null && dragProgress >= 5) {
       const startTime = minutesToTimeString(dragStart);
       const endTime = minutesToTimeString((dragStart + dragProgress) % (24 * 60));
       onBlockCreated(startTime, endTime);
 
-      // Haptic feedback on mobile
       if ('vibrate' in navigator) {
         navigator.vibrate(50);
       }
@@ -246,7 +226,6 @@ export default function CircularChart({
     setHasMovedEnough(false);
   }, [isDragging, hasMovedEnough, dragStart, dragProgress, onBlockCreated]);
 
-  // Add global mouse and touch listeners for dragging
   useEffect(() => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
@@ -263,11 +242,8 @@ export default function CircularChart({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Render hour labels (24-hour clock: 12 AM top, 6 AM right, 12 PM bottom, 6 PM left)
   const renderHourLabels = () => {
     const labels = [];
-    // On mobile: show only cardinal directions (12 AM, 6 AM, 12 PM, 6 PM)
-    // On desktop: show all 8 key positions
     const hoursToShow = isMobile ? [0, 6, 12, 18] : [0, 3, 6, 9, 12, 15, 18, 21];
 
     for (const hour of hoursToShow) {
@@ -284,7 +260,9 @@ export default function CircularChart({
           y={y}
           textAnchor="middle"
           dominantBaseline="middle"
-          className="text-xs font-semibold fill-gray-700"
+          fill="var(--chart-label)"
+          fontSize="12"
+          fontWeight="600"
         >
           {formatHourTo12Hour(hour)}
         </text>
@@ -294,7 +272,10 @@ export default function CircularChart({
     return labels;
   };
 
-  // Render hour tick marks
+  const getTextColor = (_hexColor: string): string => {
+    return '#ffffff';
+  };
+
   const renderHourTicks = () => {
     const ticks = [];
     for (let i = 0; i < 24; i++) {
@@ -312,7 +293,7 @@ export default function CircularChart({
           y1={y1}
           x2={x2}
           y2={y2}
-          stroke="#9ca3af"
+          stroke="var(--chart-tick)"
           strokeWidth="2"
         />
       );
@@ -350,7 +331,7 @@ export default function CircularChart({
         <path
           key={`segment-${hour}`}
           d={path}
-          fill="rgba(243, 244, 246, 0.9)" // subtle gray fill
+          fill="var(--chart-segment)"
           stroke="none"
         />
       );
@@ -375,7 +356,7 @@ export default function CircularChart({
           y1={y1}
           x2={x2}
           y2={y2}
-          stroke="rgba(209, 213, 219, 0.9)" // gray-300
+          stroke="var(--chart-divider)"
           strokeWidth="1.5"
         />
       );
@@ -383,7 +364,6 @@ export default function CircularChart({
     return dividers;
   };
 
-  // Render time blocks
   const renderTimeBlocks = () => {
     return timeBlocks.map((block) => {
       const startMinutes = timeStringToMinutes(block.startTime);
@@ -415,39 +395,30 @@ export default function CircularChart({
         Z
       `;
 
-      // Calculate label position (center of arc)
       const midAngle = (startAngle + endAngle) / 2;
       const midAngleRad = ((midAngle - 90) * Math.PI) / 180;
       const labelRadius = (radius + innerRadius) / 2;
       const labelX = center + labelRadius * Math.cos(midAngleRad);
       const labelY = center + labelRadius * Math.sin(midAngleRad);
 
-      // Calculate available arc length at the label radius for smart text fitting
       const arcSpanDeg = endAngle - startAngle;
       const arcLength = (arcSpanDeg / 360) * 2 * Math.PI * labelRadius;
       const radialWidth = radius - innerRadius;
 
-      // Estimate how many characters fit: ~7px per char at text-xs (12px font), ~6px at 10px font
       const charWidthLarge = 7;
       const charWidthSmall = 5.5;
-      // Use the smaller of arc length and radial width as the constraining dimension,
-      // but arc length is the primary constraint for text along the arc
       const availableWidth = Math.min(arcLength * 0.85, radialWidth * 1.2);
 
-      // Determine font size and label text
       let fontSize: number;
       let displayLabel: string;
 
       if (duration < 20) {
-        // Very small blocks: hide text entirely (tooltip on hover is enough)
         fontSize = 0;
         displayLabel = '';
       } else if (availableWidth < charWidthSmall * 2) {
-        // Too small for any text
         fontSize = 0;
         displayLabel = '';
       } else if (availableWidth < charWidthLarge * block.label.length) {
-        // Text doesn't fit at normal size — try smaller font first
         fontSize = 10;
         const maxChars = Math.floor(availableWidth / charWidthSmall);
         if (maxChars < 3) {
@@ -459,50 +430,29 @@ export default function CircularChart({
           displayLabel = block.label;
         }
       } else {
-        // Text fits at normal size
         fontSize = 12;
         displayLabel = block.label;
       }
 
-      // Rotate text to follow the arc direction for readability
       const rotationAngle = midAngle;
-      // Flip text if it would be upside-down (between 90° and 270° on the circle)
-      const adjustedRotation = (rotationAngle > 90 && rotationAngle < 270)
-        ? rotationAngle + 180
-        : rotationAngle;
+      const adjustedRotation =
+        rotationAngle > 90 && rotationAngle < 270 ? rotationAngle + 180 : rotationAngle;
+
+      const textColor = getTextColor(block.color);
+      const isHovered = hoveredBlock?.id === block.id || activeBlock?.id === block.id;
 
       return (
         <g key={block.id}>
           <path
             d={path}
             fill={block.color}
-            stroke="white"
+            stroke="var(--chart-segment)"
             strokeWidth="2"
-            className="cursor-pointer transition-opacity hover:opacity-80"
+            className="cursor-pointer transition-opacity"
+            opacity={isHovered ? 0.85 : 1}
             onClick={() => onBlockClick(block)}
-            onMouseEnter={(e) => {
-              setHoveredBlock(block);
-              const rect = svgRef.current?.getBoundingClientRect();
-              if (rect) {
-                setTooltipPos({
-                  x: e.clientX - rect.left,
-                  y: e.clientY - rect.top,
-                });
-              }
-            }}
-            onMouseMove={(e) => {
-              const rect = svgRef.current?.getBoundingClientRect();
-              if (rect) {
-                setTooltipPos({
-                  x: e.clientX - rect.left,
-                  y: e.clientY - rect.top,
-                });
-              }
-            }}
-            onMouseLeave={() => {
-              setHoveredBlock(null);
-              setTooltipPos(null);
-            }}
+            onMouseEnter={() => setHoveredBlock(block)}
+            onMouseLeave={() => setHoveredBlock(null)}
           />
           {fontSize > 0 && displayLabel && (
             <text
@@ -511,7 +461,9 @@ export default function CircularChart({
               textAnchor="middle"
               dominantBaseline="middle"
               transform={`rotate(${adjustedRotation}, ${labelX}, ${labelY})`}
-              className="font-semibold fill-white pointer-events-none"
+              fill={textColor}
+              fontWeight="600"
+              pointerEvents="none"
               style={{ fontSize: `${fontSize}px` }}
             >
               {displayLabel}
@@ -522,7 +474,6 @@ export default function CircularChart({
     });
   };
 
-  // Render drag preview
   const renderDragPreview = () => {
     if (!isDragging || !hasMovedEnough || dragStart === null || dragProgress < 5) return null;
 
@@ -572,128 +523,217 @@ export default function CircularChart({
           strokeWidth="2"
           strokeDasharray="5,5"
         />
-        {/* Show drag times in center */}
-        <text
-          x={center}
-          y={center}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          className="fill-gray-700"
-        >
-          <tspan className="text-xs font-medium fill-blue-600">
-            {formatTo12Hour(minutesToTimeString(startMinutes))}
-          </tspan>
-          <tspan className="text-xs font-medium fill-gray-500" dx="6">→</tspan>
-          <tspan className="text-xs font-semibold fill-purple-600" dx="6">
-            {formatTo12Hour(minutesToTimeString((startMinutes + duration) % (24 * 60)))}
-          </tspan>
-        </text>
       </g>
     );
   };
 
-  return (
-    <div className="flex-1 bg-gray-50 flex items-center justify-center overflow-auto">
-      <div className="w-full max-w-5xl px-1 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-4">
-        <div className="mb-3 sm:mb-4 lg:mb-3 text-center">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-            Circular Overview
-          </h3>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">
-            Drag around the dial to create time blocks or tap an existing block to edit.
-          </p>
-        </div>
-        <div className="flex items-center justify-center w-full">
-          <svg
-            ref={svgRef}
-            width={canvasSize}
-            height={canvasSize}
-            className="cursor-crosshair block"
-            style={{
-              maxWidth: '100%',
-              height: 'auto',
-              maxHeight: '100vh',
-              margin: '0 auto',
-              touchAction: isMobile ? 'none' : 'auto' // Prevent scrolling/gestures on mobile
-            }}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+  // Center display: drag state > activeBlock/hoveredBlock > resting total > empty
+  const renderCenterDisplay = () => {
+    const totalScheduledMinutes = timeBlocks.reduce(
+      (sum, b) => sum + calculateDuration(b.startTime, b.endTime),
+      0
+    );
+
+    const formatTotalTime = (mins: number) => {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      if (h === 0) return `${m}m`;
+      if (m === 0) return `${h}h`;
+      return `${h}h ${m}m`;
+    };
+
+    // Drag in progress
+    if (isDragging && hasMovedEnough && dragStart !== null && dragProgress >= 5) {
+      const startLabel = formatTo12Hour(minutesToTimeString(dragStart));
+      const endLabel = formatTo12Hour(
+        minutesToTimeString((dragStart + dragProgress) % (24 * 60))
+      );
+      const durationLabel = formatDuration(dragProgress);
+      const timeFontSize = isMobile ? 12 : 14;
+      const durationFontSize = isMobile ? 10 : 11;
+      return (
+        <g pointerEvents="none">
+          <text
+            x={center}
+            y={center - 9}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#93c5fd"
+            fontWeight="600"
+            fontSize={timeFontSize}
           >
-            {/* Background circle */}
-            <circle
-              cx={center}
-              cy={center}
-              r={radius}
-              fill="none"
-              stroke="#d1d5db"
-              strokeWidth="2"
-            />
-            <circle
-              cx={center}
-              cy={center}
-              r={innerRadius}
-              fill="none"
-              stroke="#e9d5ff"
-              strokeWidth="2"
-            />
+            {startLabel} → {endLabel}
+          </text>
+          <text
+            x={center}
+            y={center + 9}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="var(--chart-tick)"
+            fontSize={durationFontSize}
+          >
+            {durationLabel}
+          </text>
+        </g>
+      );
+    }
 
-            {/* Subtle hour segments */}
-            {renderHourSegments()}
+    // Hovered/active block (segment hover or list hover)
+    const displayBlock = activeBlock ?? hoveredBlock;
+    if (displayBlock) {
+      const duration = calculateDuration(displayBlock.startTime, displayBlock.endTime);
+      const nameFontSize = isMobile ? 13 : 15;
+      const detailFontSize = isMobile ? 10 : 11;
+      return (
+        <g pointerEvents="none">
+          <text
+            x={center}
+            y={center - 14}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="var(--chart-label)"
+            fontWeight="600"
+            fontSize={nameFontSize}
+          >
+            {displayBlock.label}
+          </text>
+          <text
+            x={center}
+            y={center + 3}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="var(--chart-tick)"
+            fontSize={detailFontSize}
+          >
+            {formatTo12Hour(displayBlock.startTime)} – {formatTo12Hour(displayBlock.endTime)}
+          </text>
+          <text
+            x={center}
+            y={center + 17}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="var(--chart-tick)"
+            fontSize={detailFontSize}
+            opacity="0.7"
+          >
+            {formatDuration(duration)}
+          </text>
+        </g>
+      );
+    }
 
-            {/* Hour dividing lines */}
-            {renderHourDividers()}
+    // Resting: total scheduled time
+    if (totalScheduledMinutes > 0) {
+      const bigFontSize = isMobile ? 20 : 26;
+      const smallFontSize = isMobile ? 10 : 12;
+      return (
+        <g pointerEvents="none">
+          <text
+            x={center}
+            y={center - 9}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="var(--chart-label)"
+            fontWeight="700"
+            fontSize={bigFontSize}
+          >
+            {formatTotalTime(totalScheduledMinutes)}
+          </text>
+          <text
+            x={center}
+            y={center + bigFontSize * 0.65}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="var(--chart-tick)"
+            fontSize={smallFontSize}
+            opacity="0.7"
+          >
+            scheduled today
+          </text>
+        </g>
+      );
+    }
 
-            {/* Hour ticks */}
-            {renderHourTicks()}
+    return null;
+  };
 
-            {/* Time blocks */}
-            {renderTimeBlocks()}
+  return (
+    <div className="flex-1 flex items-center justify-center overflow-hidden select-none">
+      <svg
+        ref={svgRef}
+        width={canvasSize}
+        height={canvasSize}
+        className="cursor-crosshair block"
+        style={{
+          maxWidth: '100%',
+          height: 'auto',
+          maxHeight: '100vh',
+          margin: '0 auto',
+          touchAction: isMobile ? 'none' : 'auto',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        {/* Background circles */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke="var(--chart-ring)"
+          strokeWidth="2"
+        />
+        <circle
+          cx={center}
+          cy={center}
+          r={innerRadius}
+          fill="none"
+          stroke="var(--chart-inner-ring)"
+          strokeWidth="2"
+        />
 
-            {/* Drag preview */}
-            {renderDragPreview()}
+        {renderHourSegments()}
+        {renderHourDividers()}
+        {renderHourTicks()}
+        {renderTimeBlocks()}
+        {renderDragPreview()}
+        {renderHourLabels()}
 
-            {/* Hour labels */}
-            {renderHourLabels()}
+        {/* Empty state affordance */}
+        {timeBlocks.length === 0 && !isDragging && (
+          <g>
+            <text
+              x={center}
+              y={center - 12}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="var(--chart-label)"
+              fontSize={isMobile ? '13' : '15'}
+              fontWeight="500"
+              opacity="0.7"
+            >
+              {isMobile ? 'Drag on ring' : 'Click & drag on the ring'}
+            </text>
+            <text
+              x={center}
+              y={center + 12}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="var(--chart-tick)"
+              fontSize={isMobile ? '11' : '12'}
+              opacity="0.6"
+            >
+              to add time blocks
+            </text>
+          </g>
+        )}
 
-            {/* Tooltip */}
-            {hoveredBlock && tooltipPos && (
-              <g style={{ pointerEvents: 'none' }}>
-                <foreignObject
-                  x={tooltipPos.x + 10}
-                  y={tooltipPos.y - 40}
-                  width="200"
-                  height="80"
-                >
-                  <div
-                    style={{
-                      backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                      color: 'white',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                      {hoveredBlock.label}
-                    </div>
-                    <div style={{ fontSize: '11px', opacity: 0.9 }}>
-                      {formatTo12Hour(hoveredBlock.startTime)} - {formatTo12Hour(hoveredBlock.endTime)}
-                    </div>
-                    <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}>
-                      {formatDuration(calculateDuration(hoveredBlock.startTime, hoveredBlock.endTime))}
-                    </div>
-                  </div>
-                </foreignObject>
-              </g>
-            )}
-          </svg>
-        </div>
-      </div>
+        {renderCenterDisplay()}
+      </svg>
     </div>
   );
 }

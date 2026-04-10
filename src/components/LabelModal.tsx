@@ -49,9 +49,11 @@ export default function LabelModal({
     }
   };
 
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
   const modalStyles = {
     overlay: {
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
       backdropFilter: 'blur(4px)',
       zIndex: 1000,
     },
@@ -67,28 +69,29 @@ export default function LabelModal({
       padding: 0,
       maxWidth: '500px',
       width: '90%',
+      background: isDark ? '#111827' : '#ffffff',
     },
   };
 
   return (
     <Modal isOpen={isOpen} onRequestClose={onClose} style={modalStyles}>
       <div className="p-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           {mode === 'edit' ? 'Edit Time Block' : 'Create Time Block'}
         </h3>
         <div className="flex items-center gap-3 mb-6">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             {formatTo12Hour(startTime)} - {formatTo12Hour(endTime)}
           </div>
           <div className="w-1 h-1 rounded-full bg-gray-400"></div>
-          <div className="text-sm font-medium text-blue-600">
+          <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
             {formatDuration(duration)}
           </div>
         </div>
 
         <div className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Label
             </label>
             <input
@@ -97,13 +100,13 @@ export default function LabelModal({
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="e.g., Work, Gym, Study..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none transition-all"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Color
             </label>
             <div className="grid grid-cols-5 gap-3">
@@ -111,9 +114,9 @@ export default function LabelModal({
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color)}
-                  className={`h-12 rounded-lg transition-all ${
+                  className={`h-12 rounded-lg transition-all border-none bg-transparent p-0 ${
                     selectedColor === color
-                      ? 'ring-2 ring-offset-2 ring-gray-900 scale-105'
+                      ? 'ring-2 ring-offset-2 ring-gray-900 dark:ring-gray-100 scale-105'
                       : 'hover:scale-105 opacity-80 hover:opacity-100'
                   }`}
                   style={{ backgroundColor: color }}
@@ -133,7 +136,7 @@ export default function LabelModal({
                   onClose();
                 }
               }}
-              className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 active:scale-95 transition-all"
+              className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 active:scale-95 transition-all border-none"
             >
               Delete
             </button>
@@ -141,7 +144,7 @@ export default function LabelModal({
           <button
             onClick={handleSave}
             disabled={!label.trim()}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed border-none"
           >
             {mode === 'edit' ? 'Save Changes' : 'Create Block'}
           </button>
@@ -151,7 +154,7 @@ export default function LabelModal({
               setLabel(initialLabel);
               setSelectedColor(initialColor || availableColors[0]);
             }}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 active:scale-95 transition-all"
+            className="px-6 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition-all bg-transparent"
           >
             Cancel
           </button>

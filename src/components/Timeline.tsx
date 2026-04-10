@@ -47,13 +47,10 @@ export default function Timeline({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // On mobile, use a fixed reasonable height that's scrollable
-  // On desktop, use dynamic height based on viewport
-  const timelineHeight = isMobile
-    ? 1400 // Fixed height on mobile for scrollability (about 58px per hour)
-    : viewportHeight
-    ? Math.max(820, viewportHeight - 320) // leave room for header + spacing
-    : 1100;
+  // Use viewport height minus top bar and padding — same approach on mobile and desktop
+  const timelineHeight = viewportHeight
+    ? Math.max(1200, (viewportHeight - (isMobile ? 80 : 320)) * 2)
+    : 1600;
   const totalDayMinutes = 24 * 60;
 
   const getTimelineSegments = (startMinutes: number, durationMinutes: number) => {
@@ -199,10 +196,10 @@ export default function Timeline({
       markers.push(
         <div
           key={hour}
-          className="absolute left-0 right-0 border-t border-gray-200"
+          className="absolute left-0 right-0 border-t border-gray-200 dark:border-gray-700/60"
           style={{ top: `${top}%` }}
         >
-          <span className="absolute -left-12 sm:-left-14 -top-2 text-xs text-gray-500 font-medium whitespace-nowrap">
+          <span className="absolute -left-12 sm:-left-14 -top-2 text-xs text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">
             {formatHourTo12Hour(hour)}
           </span>
         </div>
@@ -301,7 +298,7 @@ export default function Timeline({
     return segments.map((segment, index) => (
       <div
         key={`preview-${segment.start}-${index}`}
-        className="absolute left-12 sm:left-14 right-2 sm:right-4 rounded-lg border-2 border-dashed border-gray-400 pointer-events-none bg-gradient-to-r from-blue-100 to-purple-100"
+        className="absolute left-12 sm:left-14 right-2 sm:right-4 rounded-lg border-2 border-dashed border-gray-400 dark:border-gray-500 pointer-events-none bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30"
         style={{
           top: `${(segment.start / totalDayMinutes) * 100}%`,
           height: `${(segment.duration / totalDayMinutes) * 100}%`,
@@ -309,7 +306,7 @@ export default function Timeline({
         }}
       >
         {index === 0 && (
-          <div className="px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 font-medium text-xs sm:text-sm">
+          <div className="px-2 sm:px-3 py-1.5 sm:py-2 text-gray-700 dark:text-gray-200 font-medium text-xs sm:text-sm">
             <div className="text-xs">
               {formatTo12Hour(minutesToTimeString(startMinutes))} - {formatTo12Hour(minutesToTimeString((startMinutes + duration) % totalDayMinutes))}
             </div>
@@ -323,13 +320,13 @@ export default function Timeline({
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
-      <div className="mx-auto max-w-4xl px-2 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-8 pb-4 sm:pb-8 lg:pb-8">
+    <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950">
+      <div className="mx-auto max-w-4xl px-2 sm:px-4 lg:px-6 py-1 sm:py-4 lg:py-8 pb-2 sm:pb-8 lg:pb-8">
         <div className="mb-2 sm:mb-4 lg:mb-6 hidden lg:block">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
             Timeline View
           </h3>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">
             Drag on the timeline to create time blocks (5-minute intervals)
           </p>
         </div>
@@ -338,7 +335,7 @@ export default function Timeline({
         <div className="relative pl-12 sm:pl-14 lg:pl-16">
           <div
             ref={timelineRef}
-            className="relative bg-white border-2 border-gray-300 rounded-lg cursor-crosshair shadow-sm"
+            className="relative bg-white dark:bg-gray-900 border-2 border-gray-300 dark:border-gray-700 rounded-lg cursor-crosshair shadow-sm"
             style={{ height: `${timelineHeight}px` }}
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
