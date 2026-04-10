@@ -49,8 +49,8 @@ export default function Timeline({
 
   // Use viewport height minus top bar and padding — same approach on mobile and desktop
   const timelineHeight = viewportHeight
-    ? Math.max(500, viewportHeight - (isMobile ? 80 : 320))
-    : 800;
+    ? Math.max(1200, (viewportHeight - (isMobile ? 80 : 320)) * 2)
+    : 1600;
   const totalDayMinutes = 24 * 60;
 
   const getTimelineSegments = (startMinutes: number, durationMinutes: number) => {
