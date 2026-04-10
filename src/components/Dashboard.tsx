@@ -806,7 +806,7 @@ export default function Dashboard() {
           width: 240,
           background: 'var(--surface)',
           borderRight: '1px solid var(--border)',
-          transform: showDrawer ? 'translateX(0)' : 'translateX(-100%)',
+          transform: showDrawer ? 'translateX(0)' : 'translateX(calc(-100% - 2px))',
           boxShadow: showDrawer ? '8px 0 32px rgba(0,0,0,0.1)' : 'none',
         }}
       >

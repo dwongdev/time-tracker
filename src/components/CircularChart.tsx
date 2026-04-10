@@ -706,16 +706,6 @@ export default function CircularChart({
         {/* Empty state affordance */}
         {timeBlocks.length === 0 && !isDragging && (
           <g>
-            <circle
-              cx={center}
-              cy={center}
-              r={(radius + innerRadius) / 2}
-              fill="none"
-              stroke="#93c5fd"
-              strokeWidth="3"
-              strokeDasharray="8 6"
-              opacity="0.5"
-            />
             <text
               x={center}
               y={center - 12}
