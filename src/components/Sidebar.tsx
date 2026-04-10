@@ -186,7 +186,6 @@ export default function Sidebar({
                       )}
                     </button>
                   ))}
-                  <div className="h-px bg-gray-700/60 my-1" />
                   <button
                     onClick={() => {
                       onCreateSchedule?.();

@@ -888,14 +888,13 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-              <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
               <button
                 onClick={() => { handleCreateNewSchedule(); setShowDrawer(false); }}
-                className="w-full flex items-center gap-3 border-none shadow-none transition-colors rounded-none text-blue-600"
-                style={{ padding: '8px 20px', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                className="w-full flex items-center gap-2.5 border-none shadow-none transition-colors rounded-none text-blue-600"
+                style={{ padding: '7px 20px', marginTop: '8px', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
               >
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <svg className="w-1.5 h-1.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M12 4v16m8-8H4" />
                 </svg>
                 <span className="text-sm font-medium">New Schedule</span>
               </button>
