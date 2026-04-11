@@ -329,7 +329,7 @@ app.post('/api/ai/message', async (req, res) => {
     const client = new Anthropic({ apiKey: claudeApiKey });
 
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: usageInfo.tier === 'premium' ? 'claude-sonnet-4-20250514' : 'claude-haiku-4-5-20251001',
       max_tokens: 4096,
       system: `${SYSTEM_PROMPT}\n\n${scheduleContext}`,
       messages: messages.map((msg) => ({
@@ -352,6 +352,7 @@ app.post('/api/ai/message', async (req, res) => {
         (parsedBlocks ? "Here's a schedule I created for you:" : assistantText),
       timeBlocks: parsedBlocks || undefined,
       usage: {
+        used: usageInfo.limit - usageInfo.remaining,
         remaining: usageInfo.remaining,
         limit: usageInfo.limit,
         tier: usageInfo.tier,
