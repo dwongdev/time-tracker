@@ -28,6 +28,7 @@ import {
   formatDuration,
   formatTo12Hour,
 } from '../utils/timeUtils';
+import { exportChartAsImage } from '../utils/exportUtils';
 
 const availableColors = [
   '#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa',
@@ -57,6 +58,8 @@ export default function Dashboard() {
   const [currentScheduleName, setCurrentScheduleName] = useState<string>('My Schedule');
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
   const authButtonRef = useRef<HTMLDivElement>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // AI Assistant chat state (lifted up to persist across navigation)
   const [aiMessages, setAiMessages] = useState<DisplayMessage[]>([
@@ -251,6 +254,17 @@ export default function Dashboard() {
       return;
     }
     setTimeBlocks([]);
+  };
+
+  const handleExportChart = async () => {
+    const svgEl = chartContainerRef.current?.querySelector('svg');
+    if (!svgEl) return;
+    setIsExporting(true);
+    try {
+      await exportChartAsImage(svgEl as SVGSVGElement, currentScheduleName, isDark);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleCreateNewSchedule = async () => {
@@ -485,7 +499,7 @@ export default function Dashboard() {
       )}
 
       {currentRoute === 'dashboard' && viewMode === 'circular' && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div ref={chartContainerRef} className="absolute inset-0 flex items-center justify-center">
           <CircularChart
             timeBlocks={timeBlocks}
             onBlockCreated={handleBlockCreated}
@@ -629,6 +643,34 @@ export default function Dashboard() {
           >
             List
           </button>
+
+          {/* Export button — circular mode only, when blocks exist */}
+          {viewMode === 'circular' && timeBlocks.length > 0 && (
+            <>
+              <div className="hidden sm:block" style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px', flexShrink: 0 }} />
+              <button
+                onClick={handleExportChart}
+                disabled={isExporting}
+                className="border-none shadow-none rounded-full transition-colors flex items-center justify-center gap-1 px-2.5 hidden sm:flex"
+                style={{
+                  height: 24,
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                  opacity: isExporting ? 0.5 : 1,
+                }}
+                title="Export as PNG"
+              >
+                <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>{isExporting ? 'Exporting…' : 'Export'}</span>
+              </button>
+            </>
+          )}
 
           {/* Clear button — only when blocks exist; icon-only on mobile */}
           {timeBlocks.length > 0 && (
