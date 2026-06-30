@@ -191,7 +191,7 @@ export default function AuthButtons() {
       await resendVerificationEmail();
       setVerificationMessage('Verification email sent! Check your inbox.');
       setTimeout(() => setVerificationMessage(''), 5000);
-    } catch (error: unknown) {
+    } catch {
       setVerificationMessage('Failed to send verification email. Please try again.');
       setTimeout(() => setVerificationMessage(''), 5000);
     } finally {

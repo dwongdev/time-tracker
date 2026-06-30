@@ -272,7 +272,7 @@ export default function CircularChart({
     return labels;
   };
 
-  const getTextColor = (_hexColor: string): string => {
+  const getTextColor = (): string => {
     return '#ffffff';
   };
 
@@ -438,7 +438,7 @@ export default function CircularChart({
       const adjustedRotation =
         rotationAngle > 90 && rotationAngle < 270 ? rotationAngle + 180 : rotationAngle;
 
-      const textColor = getTextColor(block.color);
+      const textColor = getTextColor();
       const isHovered = hoveredBlock?.id === block.id || activeBlock?.id === block.id;
 
       return (

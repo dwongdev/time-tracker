@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import type { Schedule } from '../types/schedule';
 import {
@@ -29,12 +29,7 @@ export default function SchedulesPage({
   const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
   const [editingScheduleName, setEditingScheduleName] = useState('');
 
-  // Load schedules
-  useEffect(() => {
-    loadSchedules();
-  }, [user.uid]);
-
-  const loadSchedules = async () => {
+  const loadSchedules = useCallback(async () => {
     setIsLoading(true);
     try {
       const userSchedules = await getUserSchedules(user.uid);
@@ -43,7 +38,12 @@ export default function SchedulesPage({
       console.error('Error loading schedules:', error);
     }
     setIsLoading(false);
-  };
+  }, [user.uid]);
+
+  // Load schedules
+  useEffect(() => {
+    loadSchedules();
+  }, [loadSchedules]);
 
   const handleCreateSchedule = async () => {
     if (!newScheduleName.trim()) return;

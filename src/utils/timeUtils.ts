@@ -39,7 +39,7 @@ export const timeStringToMinutes = (timeString: string): number => {
  * @returns Duration in minutes
  */
 export const calculateDuration = (start: string, end: string): number => {
-  let startMinutes = timeStringToMinutes(start);
+  const startMinutes = timeStringToMinutes(start);
   let endMinutes = timeStringToMinutes(end);
 
   // Handle overnight duration

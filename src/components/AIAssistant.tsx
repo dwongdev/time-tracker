@@ -72,7 +72,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     }
 
     // List items (- or *)
-    const listMatch = line.match(/^[\-\*]\s+(.+)$/);
+    const listMatch = line.match(/^[-*]\s+(.+)$/);
     if (listMatch) {
       listItems.push(<li key={`li-${i}`}>{formatInline(listMatch[1])}</li>);
       continue;
