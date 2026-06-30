@@ -39,11 +39,17 @@ function resolveVars(el: Element, p: Palette) {
   for (const child of Array.from(el.children)) resolveVars(child, p);
 }
 
-export async function exportChartAsImage(
+export interface ChartImage {
+  blob: Blob;
+  url: string;
+  filename: string;
+}
+
+export async function renderChartImage(
   svgEl: SVGSVGElement,
   scheduleName: string,
   isDark: boolean,
-): Promise<void> {
+): Promise<ChartImage> {
   const p = isDark ? DARK : LIGHT;
   const ns = 'http://www.w3.org/2000/svg';
 
@@ -115,18 +121,23 @@ export async function exportChartAsImage(
 
       canvas.toBlob((pngBlob) => {
         if (!pngBlob) { reject(new Error('PNG export failed')); return; }
-        const pngUrl = URL.createObjectURL(pngBlob);
-        const a = document.createElement('a');
-        a.href = pngUrl;
-        a.download = `${(scheduleName || 'schedule').replace(/\s+/g, '-').toLowerCase()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(pngUrl), 100);
-        resolve();
+        resolve({
+          blob: pngBlob,
+          url: URL.createObjectURL(pngBlob),
+          filename: `${(scheduleName || 'schedule').replace(/\s+/g, '-').toLowerCase()}.png`,
+        });
       }, 'image/png');
     };
     img.onerror = () => { URL.revokeObjectURL(svgUrl); reject(new Error('SVG load failed')); };
     img.src = svgUrl;
   });
+}
+
+export function downloadChartImage(image: ChartImage): void {
+  const a = document.createElement('a');
+  a.href = image.url;
+  a.download = image.filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }

@@ -6,6 +6,7 @@ import { signOutUser } from '../auth';
 import Timeline from './Timeline';
 import CircularChart from './CircularChart';
 import LabelModal from './LabelModal';
+import ExportPreviewModal from './ExportPreviewModal';
 import SchedulesPage from './SchedulesPage';
 import SettingsPage from './SettingsPage';
 import AuthButtons from './AuthButtons';
@@ -28,7 +29,7 @@ import {
   formatDuration,
   formatTo12Hour,
 } from '../utils/timeUtils';
-import { exportChartAsImage } from '../utils/exportUtils';
+import { renderChartImage, downloadChartImage, type ChartImage } from '../utils/exportUtils';
 
 const availableColors = [
   '#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa',
@@ -60,6 +61,7 @@ export default function Dashboard() {
   const authButtonRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportPreview, setExportPreview] = useState<ChartImage | null>(null);
 
   // AI Assistant chat state (lifted up to persist across navigation)
   const [aiMessages, setAiMessages] = useState<DisplayMessage[]>([
@@ -261,10 +263,22 @@ export default function Dashboard() {
     if (!svgEl) return;
     setIsExporting(true);
     try {
-      await exportChartAsImage(svgEl as SVGSVGElement, currentScheduleName, isDark);
+      const image = await renderChartImage(svgEl as SVGSVGElement, currentScheduleName, isDark);
+      setExportPreview(image);
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleCloseExportPreview = () => {
+    if (exportPreview) URL.revokeObjectURL(exportPreview.url);
+    setExportPreview(null);
+  };
+
+  const handleConfirmDownload = () => {
+    if (!exportPreview) return;
+    downloadChartImage(exportPreview);
+    handleCloseExportPreview();
   };
 
   const handleCreateNewSchedule = async () => {
@@ -1057,6 +1071,15 @@ export default function Dashboard() {
           mode={editingBlock ? 'edit' : 'create'}
           initialLabel={editingBlock?.label}
           initialColor={editingBlock?.color}
+        />
+      )}
+
+      {/* Export Preview Modal */}
+      {exportPreview && (
+        <ExportPreviewModal
+          imageUrl={exportPreview.url}
+          onClose={handleCloseExportPreview}
+          onDownload={handleConfirmDownload}
         />
       )}
 
